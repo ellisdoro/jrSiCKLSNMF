@@ -1,0 +1,15 @@
+useDynLib(jrSiCKLSNMF, .registration=TRUE)
+importFrom(Rcpp, evalCpp)
+importFrom(scran,buildKNNGraph)
+importFrom(igraph,laplacian_matrix)
+importFrom(umap,umap)
+importFrom(umap,umap.defaults)
+importFrom(kknn,specClust)
+import(ggplot2)
+importFrom(methods,new)
+importFrom("stats","runif","kmeans","median")
+importFrom(rlang, .data)
+## export all regularly named functions
+## (but allow for private functions whose name starts with a dot).name <- function(...)
+exportPattern("^[[:alpha:]]+")
+

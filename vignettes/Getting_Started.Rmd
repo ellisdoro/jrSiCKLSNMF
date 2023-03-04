@@ -1,0 +1,109 @@
+---
+title: "Getting started with jrSiCKLSNMF"
+author: "Dorothy Ellis"
+date: "2023-03-03"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with jrSiCKLSNMF}
+  %\VignetteEngine{knitr::knitr}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Loading jrSiCKLSNMF and creating a SickleJr object
+Here, we will provide a walkthrough of jrSiCKLSNMF on simulated data. First, install and load the jrSiCKLSNMF package:
+
+```{r loadjrSiCKLSNMF}
+library(jrSiCKLSNMF)
+```
+
+For this walkthrough, we will be working with simulated data object \textsc{SimData}. These data were generated from GSE130399 using the packages SparSim and simATAC. The details for the simulations can be found in our paper. \textsc{SimData} has already been QC'd; however, when working with real data, you should QC your data and select features that appear in at least 10 cells for both views. After loading \textsc{jrSiCKLSNMF} into R, you should have access to \textsc{SimData}.
+
+Now, we create a SickleJr object. This object will hold all of the results and intermediary steps for jrSiCKLSNMF. We will also create a vector containing the cell types for the simulated data for use in the next section.
+
+```{r createSickleJr}
+data("SimData")
+DataMatrices<-SimData$Xmatrices
+cell_type<-SimData$cell_type
+SimSickleJr<-createSickleJr(SimData$Xmatrices)
+rm(DataMatrices,SimData)
+```
+
+# Adding Metadata
+
+Next, we will add metadata in the form of the true cell identity to the SickleJr object.
+
+```{r addmetadata}
+SimSickleJr<-AddSickleJrMetaData(SimSickleJr,cell_type,"true_cell_type")
+rm(cell_type)
+```
+
+You can add any metadata to the SickleJr object. Make sure to set the variable \textsc{metadata} to the variable containing the metadata you wish to add and the metadataname to a string containing what you wish the metadata to be called. Here, we call the metadata "true_cell_type." 
+
+# Generation of Graph Laplacians for Graph Regularization
+
+Next, we build our KNN graphs and extract the graph Laplacian to use for graph regularization. Note that for large matrices, this can take some time. Please set a seed if you want to have the exact same graph Laplacians every time.
+
+```{r graphlaplacian}
+SimSickleJr<-BuildKNNGraphLaplacians(SimSickleJr)
+```
+
+# Normalization, Initialization of W and H, and setting of Lambda values
+
+Next, we will normalize our count matrices using median library size normalization.
+
+```{r Normalize}
+SimSickleJr<-NormalizeCountMatrix(SimSickleJr)
+```
+
+We then initialize our W and H matrices below.
+
+```{r initializeWH}
+SimSickleJr<-GenerateWmatricesandHmatrix(SimSickleJr)
+```
+
+For values $\lambda_{W^v}$ and our value $\lambda_H$, when we constrain the rows of $\textbf{H}$ such that the L2 Norm of each row is equal to 1 (the default), we suggest setting $\lambda_{\textbf W^{RNA}}=3$, $\lambda_{\textbf W^{ATAC}}=15$, and $\lambda_{\textbf H}=0$. When not using this constraint, we suggest using $\lambda_{\textbf W^{RNA}}=10$, $\lambda_{W^{ATAC}}=50$, and $\lambda_{H}=500$. 
+
+```{r setlambdas}
+SimSickleJr<-setLambdas(SimSickleJr,list(3,15))
+```
+
+# Running jrSiCKLSNMF
+
+Finally, we can run jrSicKLSNMF. By default, we constrain the rows of $\textbf{H}$ such that the L2 Norm of each row is equal to 1. Please note that we store $\textbf{H}$ as $\textbf{H}^T$. Please note that, for real data, you should use enough rounds to reach convergence of $10^{-6}$ for the L2 Norm regularized data and $10^{-7}$ for the sparsity data.
+
+```{r runningjrsickls}
+SimSickleJr<-RunjrSiCKLSNMF(SimSickleJr,rounds=300)
+```
+# Post-hoc analyses
+
+After this, we can perform cell clustering. In version 1.0, users can use k-means or spectral clustering. Here, we demonstrate k-means
+
+```{r clustering}
+SimSickleJr<-ClusterSickleJr(SimSickleJr,numclusts=3)
+```
+
+Finally, we can calculate and then plot the UMAP of our SickleJr. Note that if you would like to plot the UMAP of the compressed $\mathbf{W}^v\mathbf{H}$ matrix, please enter the number corresponding to the view you wish to see. For the plots, you can either color based off of identified cluster or based off of metadata.
+
+```{r UMAPplots}
+SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr)
+#Plotting based off of cluster
+plotSickleJrUMAP(SimSickleJr,title="K-means clusters")
+#Plotting based off of true cell type metadata
+plotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types",legendname="True Cell Types")
+```
+We can also visualize data in the RNA view and the ATAC view. 
+```{r UMAPplotsWH}
+SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,view=1)
+plotSickleJrUMAP(SimSickleJr,title="K-means clusters for RNA view",umap.view="W1H")
+plotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types for RNA view",legendname="True Cell Types",umap.view="W1H")
+SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,view=2)
+plotSickleJrUMAP(SimSickleJr,title="K-means clusters for ATAC view",umap.view="W2H")
+plotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types for ATAC view",legendname="True Cell Types",umap.view="W2H")
+```
