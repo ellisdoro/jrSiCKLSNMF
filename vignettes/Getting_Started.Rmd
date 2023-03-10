@@ -1,10 +1,12 @@
 ---
 title: "Getting started with jrSiCKLSNMF"
+author: "Dorothy Ellis"
+date: "2023-03-03"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Getting started with jrSiCKLSNMF}
   %\VignetteEngine{knitr::knitr}
-  %\usepackage[UTF-8]{inputenc}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include = FALSE}
@@ -14,7 +16,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Loading jrSiCKLSNMF and Creating a SickleJr Object
+# Loading jrSiCKLSNMF and creating a SickleJr object
 Here, we will provide a walkthrough of jrSiCKLSNMF on simulated data. First, install and load the jrSiCKLSNMF package:
 
 ```{r loadjrSiCKLSNMF}
@@ -52,7 +54,7 @@ Next, we build our KNN graphs and extract the graph Laplacian to use for graph r
 SimSickleJr<-BuildKNNGraphLaplacians(SimSickleJr)
 ```
 
-# Normalization, Initialization of W and H, and Setting Lambda Values
+# Normalization, Initialization of W and H, and setting of Lambda values
 
 Next, we will normalize our count matrices using median library size normalization.
 
@@ -77,9 +79,9 @@ SimSickleJr<-setLambdas(SimSickleJr,list(3,15))
 Finally, we can run jrSicKLSNMF. By default, we constrain the rows of $\textbf{H}$ such that the L2 Norm of each row is equal to 1. Please note that we store $\textbf{H}$ as $\textbf{H}^T$. Please note that, for real data, you should use enough rounds to reach convergence of $10^{-6}$ for the L2 Norm regularized data and $10^{-7}$ for the sparsity data.
 
 ```{r runningjrsickls}
-SimSickleJr<-RunjrSiCKLSNMF(SimSickleJr,rounds=20000)
+SimSickleJr<-RunjrSiCKLSNMF(SimSickleJr,rounds=300)
 ```
-# Post-hoc Analyses
+# Post-hoc analyses
 
 After this, we can perform cell clustering. In version 1.0, users can use k-means or spectral clustering. Here, we demonstrate k-means
 
@@ -96,19 +98,12 @@ plotSickleJrUMAP(SimSickleJr,title="K-means clusters")
 #Plotting based off of true cell type metadata
 plotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types",legendname="True Cell Types")
 ```
-
 We can also visualize data in the RNA view and the ATAC view. 
-
 ```{r UMAPplotsWH}
 SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,view=1)
-plotSickleJrUMAP(SimSickleJr,title="K-means clusters: RNA view",
-                 umap.view="W1H")
-plotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",
-                 title="True Cell Type: RNA view",legendname="True Cell Types",
-                 umap.view="W1H")
+plotSickleJrUMAP(SimSickleJr,title="K-means clusters for RNA view",umap.view="W1H")
+plotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types for RNA view",legendname="True Cell Types",umap.view="W1H")
 SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,view=2)
-plotSickleJrUMAP(SimSickleJr,title="K-means clusters: ATAC view",umap.view="W2H")
-plotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",
-                 title="True Cell Type:ATAC view",legendname="True Cell Types",
-                 umap.view="W2H")
+plotSickleJrUMAP(SimSickleJr,title="K-means clusters for ATAC view",umap.view="W2H")
+plotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types for ATAC view",legendname="True Cell Types",umap.view="W2H")
 ```

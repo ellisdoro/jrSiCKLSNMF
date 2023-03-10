@@ -14,7 +14,7 @@ library size normalization or log(x+1) normalization}
 median library size normalization as per Zhang 2017.}
 }
 \value{
-A list of sparse, normalized matrices
+A list of normalized matrices
 }
 \description{
 Perform normalization for count data. If you are planning to use the Frobenius norm,

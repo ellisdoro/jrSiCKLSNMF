@@ -4,20 +4,16 @@
 \alias{BuildKNNGraphLaplacians}
 \title{BuildKNNGraphLaplacians}
 \usage{
-BuildKNNGraphLaplacians(SickleJr, k = 20, dense = FALSE)
+BuildKNNGraphLaplacians(SickleJr, k = 20)
 }
 \arguments{
 \item{SickleJr}{A SickleJr object}
 
 \item{k}{Number of KNN neighbors to calculate. By default, is set to 20}
-
-\item{dense}{Indicates whether or not you want a dense matrix. Defaults to
-FALSE}
 }
 \value{
-A list of graph Laplacians in sparse matrix format
+A list of graph Laplacians
 }
 \description{
-Generate graph Laplacians for graph regularization of
-jrSiCKLSNMFNMF from the list of count matrices
+Generate graph Laplacians for graph regularization of SickleJrNMF from the list of count matrices
 }

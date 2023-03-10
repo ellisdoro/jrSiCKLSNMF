@@ -6,7 +6,7 @@
 \usage{
 RunjrSiCKLSNMF(
   SickleJr,
-  rounds = 30000,
+  rounds = 300,
   differr = 1e-06,
   diffFunc = "klp",
   display_progress = TRUE

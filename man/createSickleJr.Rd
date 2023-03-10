@@ -4,17 +4,14 @@
 \alias{createSickleJr}
 \title{createSickleJr}
 \usage{
-createSickleJr(count.matrices, dense = FALSE)
+createSickleJr(count.matrices)
 }
 \arguments{
-\item{count.matrices}{A count matrix that has already been filtered such that
-all genes and peaks appear in at least 10 cells.}
-
-\item{dense}{Indicates whether you want the count matrices stored densely or
-sparsely}
+\item{count.matrices}{A count matrix that has already been filtered such that all genes and peaks
+appear in at least 10 cells.}
 }
 \value{
-A SickleJr object with sparse or dense count matrices
+A SickleJr object
 }
 \description{
 creates an object of type SickleJr
