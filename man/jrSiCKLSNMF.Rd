@@ -10,16 +10,16 @@ jrSiCKLSNMF(
   H,
   AL,
   lambdaWL,
-  lambdaH,
+  lambdaH = 0,
   diffFunc = "klp",
-  Hconstraint = "L1Norm",
-  differr = 1e-08,
-  rounds = 300,
+  Hconstraint = "L2Norm",
+  differr = 1e-06,
+  rounds = 10000,
   display_progress = TRUE
 )
 }
 \arguments{
-\item{datamatL}{An R list where each entry contains an X matrix corresponding to a single cell data view
+\item{datamatL}{An R list where each entry contains a sparse X matrix corresponding to a single cell data view
 Each X is m^v features by n cells. Features can differ across matrices; however, n must be the same for
 each view. All data are measured on the same set of cells}
 
@@ -27,7 +27,7 @@ each view. All data are measured on the same set of cells}
 
 \item{H}{A matrix containing initialized values for the shared H}
 
-\item{AL}{An R list containing}
+\item{AL}{An R list containing all of the graph laplacians in sparse format}
 
 \item{lambdaWL}{A list of each lambdaW for each view}
 
@@ -51,7 +51,7 @@ An R list containing values for the objective function.
 }
 \description{
 Perform joint non-negative matrix factorization (NMF) across multiple views of single cell data.
-Users can choose to use the Poisson Kullback-Leibler divergence, the Frobenius norm, the
-Multinomial Kullback Leibler divergence, or the Itakura-Saitō divergence. Users can also
-set graph regularization constraints on W and sparsity constraints on H. This updates WL and H.
+Users can choose to use the Poisson Kullback-Leibler divergence or the Frobenius norm.
+Users can also set graph regularization constraints on W and sparsity constraints on H.
+This function updates WL and H.
 }
