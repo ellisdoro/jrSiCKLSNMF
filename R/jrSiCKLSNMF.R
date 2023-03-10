@@ -47,39 +47,24 @@ SickleJr<-methods::setClass(
 #' @title createSickleJr
 #' @name createSickleJr
 #' @description creates an object of type SickleJr
-#' @param count.matrices A count matrix that has already been filtered such that
-#' all genes and peaks appear in at least 10 cells.
-#' @param dense Indicates whether you want the count matrices stored densely or
-#' sparsely
-#' @return A SickleJr object with sparse or dense count matrices
-createSickleJr<-function(count.matrices,dense=FALSE){
-  if(!dense){
-    count.matrices<-.sparsify(count.matrices)
-  } else{
-    count.matrices<-as.matrix(count.matrices)
-  }
+#' @param count.matrices A count matrix that has already been filtered such that all genes and peaks
+#' appear in at least 10 cells.
+#'
+#' @return A SickleJr object
+createSickleJr<-function(count.matrices){
   object<-methods::new(Class="SickleJr",count.matrices=count.matrices)
 }
 
 
 #' @title BuildKNNGraphLaplacians
-#' @description Generate graph Laplacians for graph regularization of
-#' jrSiCKLSNMFNMF from the list of count matrices
+#' @description Generate graph Laplacians for graph regularization of SickleJrNMF from the list of count matrices
 #'@name BuildKNNGraphLaplacians
 #'@param SickleJr A SickleJr object
 #'@param k Number of KNN neighbors to calculate. By default, is set to 20
-#'@param dense Indicates whether or not you want a dense matrix. Defaults to
-#'FALSE
-#'@returns A list of graph Laplacians in sparse matrix format
+#'@returns A list of graph Laplacians
 #'@export
-BuildKNNGraphLaplacians<-function(SickleJr,k=20,dense=FALSE){
-  if(!dense){
-    SickleJr@graph.laplacian.list<-lapply(SickleJr@count.matrices,function(x){
-      laplacian_matrix(buildKNNGraph(x,transposed=TRUE,k=k))})} else{
-        SickleJr@graph.laplacian.list<-lapply(SickleJr@count.matrices,function(x){
-          as.matrix(laplacian_matrix(buildKNNGraph(x,transposed=TRUE,k=k)))})
-      }
-  SickleJr@graph.laplacian.list<-.sparsify(SickleJr@graph.laplacian.list)
+BuildKNNGraphLaplacians<-function(SickleJr,k=20){
+  SickleJr@graph.laplacian.list<-lapply(SickleJr@count.matrices,function(x){as.matrix(laplacian_matrix(buildKNNGraph(x,transposed=TRUE,k=k)))})
   return(SickleJr)
 }
 
@@ -94,33 +79,33 @@ BuildKNNGraphLaplacians<-function(SickleJr,k=20,dense=FALSE){
 #'library size normalization or log(x+1) normalization
 #'@param frob A Boolean. Set to TRUE if you want to perform log(x+1) normalization and FALSE for
 #'median library size normalization as per Zhang 2017.
-#'@returns A list of sparse, normalized matrices
+#'@returns A list of normalized matrices
 #'@export
 NormalizeCountMatrix<-function(SickleJr, frob=FALSE){
   XmatrixList<-SickleJr@count.matrices
   NormalizedXMatrices<-list()
   if(frob==TRUE){
     for(i in 1:length(XmatrixList)){
-      NormalizedXMatrices[[i]]<-.sparsify(log(XmatrixList[[i]]+1))
+      NormalizedXMatrices[[i]]<-log(as.matrix(XmatrixList[[i]])+1)
       NormalizedXMatrices[[i]]<-NormalizedXMatrices[[i]]/sum(NormalizedXMatrices[[i]])
     }
 
     } else{
       medianLibSize<-list()
       for(i in 1:length(XmatrixList)){
-        medianLibSize[[i]]<-median(apply(XmatrixList[[i]],2,sum))
-        NormalizedXMatrices[[i]]<-apply(XmatrixList[[i]],2,
-                                        function(x) x/sum(x))*medianLibSize[[i]]
+        medianLibSize[[i]]<-median(apply(as.matrix(XmatrixList[[i]]),2,sum))
+        NormalizedXMatrices[[i]]<-apply(as.matrix(XmatrixList[[i]]),2,function(x) x/sum(x))*medianLibSize[[i]]
     }
     }
   normalizationtype<-"Median Library Size"
   if(frob==TRUE){
     normalizationtype<-"Log(x+1) normalization"
   }
-  SickleJr@normalized.count.matrices<-.sparsify(NormalizedXMatrices)
+  SickleJr@normalized.count.matrices<-NormalizedXMatrices
   SickleJr@normalization.type<-normalizationtype
   return(SickleJr)
 }
+
 
 #' @title GenerateWmatricesandHmatrix
 #' @description Perform normalization for count data. If you are planning to use the Frobenius norm,
@@ -164,6 +149,7 @@ GenerateWmatricesandHmatrix<-function(SickleJr,d=10,rowReg="L2Norm"){
 #' @param SickleJr a SickleJr object
 #' @param lambdaWlist A list of graph regularization constraints for the W matrices.
 #' @param lambdaH lambda H value to add. Defaults to 0.
+#'
 #' @return SickleJr object with added lambda values
 #' @export
 #'
@@ -186,7 +172,7 @@ setLambdas<-function(SickleJr,lambdaWlist,lambdaH=0.0){
 #' @return a SickleJr object with updated W matrices, updated H matrices, and a vector of values for
 #' the loss function
 #' @export
-RunjrSiCKLSNMF<-function(SickleJr,rounds=30000,differr=1e-6,diffFunc="klp",display_progress=TRUE){
+RunjrSiCKLSNMF<-function(SickleJr,rounds=300,differr=1e-6,diffFunc="klp",display_progress=TRUE){
   outputloss<-jrSiCKLSNMF(datamatL=SickleJr@normalized.count.matrices,WL=SickleJr@Wlist,H=SickleJr@H,
                                 AL=SickleJr@graph.laplacian.list,lambdaWL=SickleJr@lambdaWlist,
                                 lambdaH=SickleJr@lambdaH, Hconstraint=toString(SickleJr@rowRegularization),

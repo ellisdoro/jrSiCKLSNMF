@@ -90,8 +90,3 @@
   # return matrices W and H
   list(W=W, H=H)
 }
-#a function that sparsifies the matrices in all of the lists
-.sparsify<-function(denselist){
-  sparselist<-lapply(denselist,function(x) as(x,"sparseMatrix"))
-  return(sparselist)
-}

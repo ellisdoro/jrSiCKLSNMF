@@ -9,7 +9,7 @@ Description: The package jrSiCKLSNMF contains methods to perform Joint graph Reg
 License: GPL (>= 2)
 Encoding: UTF-8
 RoxygenNote: 7.2.3
-Imports: Rcpp (>= 1.0.9), scran, igraph, umap, kknn, ggplot2, methods, stats, rlang, Matrix
+Imports: Rcpp (>= 1.0.9), scran, igraph, umap, kknn, ggplot2, methods, stats, rlang
 LinkingTo: Rcpp, RcppArmadillo, RcppProgress
 LazyData: true
 VIgnetteBuilder: knitr
