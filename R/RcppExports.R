@@ -2,18 +2,17 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #' @title jrSiCKLSNMF
-#' @description
-#' Perform joint non-negative matrix factorization (NMF) across multiple views of single cell data.
-#' Users can choose to use the Poisson Kullback-Leibler divergence, the Frobenius norm, the
-#' Multinomial Kullback Leibler divergence, or the Itakura-Saitō divergence. Users can also
-#' set graph regularization constraints on W and sparsity constraints on H. This updates WL and H.
+#' @description Perform joint non-negative matrix factorization (NMF) across multiple views of single cell data.
+#' Users can choose to use the Poisson Kullback-Leibler divergence or the Frobenius norm.
+#' Users can also set graph regularization constraints on W and sparsity constraints on H.
+#' This function updates WL and H.
 #' @name jrSiCKLSNMF
-#' @param datamatL An R list where each entry contains an X matrix corresponding to a single cell data view
+#' @param datamatL An R list where each entry contains a sparse X matrix corresponding to a single cell data view
 #' Each X is m^v features by n cells. Features can differ across matrices; however, n must be the same for
 #' each view. All data are measured on the same set of cells
 #' @param WL An R list containing initialized values for the W within each view. These are passed by reference
 #' @param H A matrix containing initialized values for the shared H
-#' @param AL An R list containing
+#' @param AL An R list containing all of the graph laplacians in sparse format
 #' @param lambdaWL A list of each lambdaW for each view
 #' @param lambdaH A double containing the desired value for H
 #' @param diffFunc A string indicating what type of divergence to use. It is Poisson Kulback Leibler by default
@@ -26,7 +25,7 @@
 #' @param display_progress A boolean to indicate whether the user wants to display the progress
 #' @returns An R list containing values for the objective function.
 #' @export
-jrSiCKLSNMF <- function(datamatL, WL, H, AL, lambdaWL, lambdaH, diffFunc = "klp", Hconstraint = "L1Norm", differr = 1e-8, rounds = 300, display_progress = TRUE) {
+jrSiCKLSNMF <- function(datamatL, WL, H, AL, lambdaWL, lambdaH = 0.0, diffFunc = "klp", Hconstraint = "L2Norm", differr = 1e-6, rounds = 10000, display_progress = TRUE) {
     .Call(`_jrSiCKLSNMF_jrSiCKLSNMF`, datamatL, WL, H, AL, lambdaWL, lambdaH, diffFunc, Hconstraint, differr, rounds, display_progress)
 }
 

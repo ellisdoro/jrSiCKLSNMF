@@ -17,11 +17,11 @@ void ErrorCheck(std::string diffFunc, std::string Hconstraint){
     throw invalid_argument("Please enter 'klp' for Kullback-Leibler divergence for count data, 'klm' for Kullback-Leibler divergence for proportional data, 'is' for Itakura-Saito divergence (spectra data), or 'fr' for Frobenius norm.");
   if((Hconstraint!="None")&(Hconstraint!="L1Norm")&(Hconstraint!="L2Norm")&(Hconstraint!="L1NormCol"))
     throw invalid_argument("Please enter 'None' for no row constraints on H, 'L1Norm' for an L1 Norm constraint (i.e. all entries in a row sum to 1), 'L1NormCol' for an L1 Norm constraint (i.e. all entries in each column sum to 1), or 'L2Norm' for an L2 Norm constraint (i.e. the square root of the sum of squares of each row entry equals 1)");
-  }
+}
 
 
-double lossmatcalc(const arma::mat& datamat, const arma::mat& W,
-                         const arma::mat& H, const arma::mat& A,
+double lossmatcalc(const arma::sp_mat& datamat, const arma::mat& W,
+                         const arma::mat& H, const arma::sp_mat& A,
                          const double lambdaW, const double lambdaH,
                          const std::string diffFunc="klp",int numviews=2){
   double lik=0.0;
@@ -31,14 +31,14 @@ double lossmatcalc(const arma::mat& datamat, const arma::mat& W,
     arma::mat tmpWH=WH;
     arma::mat tmpWHlog=tmpWH.transform([](double val){
       return std::max(val,1e-16);});
-    arma::mat xtmp=datamat;
+    arma::mat xtmp(datamat);
     xtmp=xtmp.transform([](double val){return std::max(val,1e-16);});
     lik=lik+arma::as_scalar(arma::accu(datamat%log(xtmp)))-arma::as_scalar(arma::accu(datamat%log(tmpWHlog)))-
       arma::as_scalar(arma::accu(datamat))+arma::as_scalar(arma::accu(tmpWH));
   } else if (diffFunc=="klm"){
     arma::mat tmpWH=WH;
     tmpWH=tmpWH.transform([](double val){return std::max(val,1e-16);});
-    arma::mat xtmp=datamat;
+    arma::mat xtmp(datamat);
     xtmp=xtmp.transform([](double val){return std::max(val,1e-16);});
     lik=lik+arma::as_scalar(arma::accu(datamat%log(xtmp)))-arma::as_scalar(arma::accu(datamat%log(tmpWH)));
   } else if (diffFunc=="fr"){
@@ -48,7 +48,7 @@ double lossmatcalc(const arma::mat& datamat, const arma::mat& W,
     lik=lik+0.5*frobnorm2;
   } else if (diffFunc=="is"){
     arma::mat WHinv=WH;
-    arma::mat xtmp=datamat;
+    arma::mat xtmp(datamat);
     xtmp=xtmp.transform([](double val){return std::max(val,1e-16);});
     WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
     WHinv=WHinv.transform([](double val){return 1/val;});
@@ -71,12 +71,12 @@ double lossmatcalc(const arma::mat& datamat, const arma::mat& W,
     arma::mat Ht=trans(H);
     double hfrob=arma::as_scalar(arma::accu(arma::trace(H*Ht)));
     lik=lik+0.5*lambdaH*numviewsterm*hfrob;
-    }
+  }
   return lik;
 }
 
-double losscalc(const arma::field<arma::mat>& datamatF, const arma::field<arma::mat>& WF,
-                      const arma::mat& H,const arma::field<arma::mat>& AF,
+double losscalc(const arma::field<arma::sp_mat>& datamatF, const arma::field<arma::mat>& WF,
+                      const arma::mat& H,const arma::field<arma::sp_mat>& AF,
                       arma::vec lambdaWV, const double& lambdaH,
                       const std::string& diffFunc="klp"){
   double lik=0.0;
@@ -87,7 +87,7 @@ double losscalc(const arma::field<arma::mat>& datamatF, const arma::field<arma::
       break;
     }else{
       lik=lik+liki;
-      }
+    }
   }
   return lik;
 }
@@ -139,21 +139,21 @@ arma::mat regFunc(const arma::mat& denomnumer, const arma::mat& H, const std::st
   }
 }
 
-void perviewNMFMUR(const arma::field<arma::mat>& datamatF, arma::field<arma::mat>& WF,
-                   arma::mat& H,const arma::field<arma::mat>& AF,
+void perviewNMFMUR(const arma::field<arma::sp_mat>& datamatF, arma::field<arma::mat>& WF,
+                   arma::mat& H,const arma::field<arma::sp_mat>& AF,
                    const arma::vec lambdaWV, const double lambdaH,
                    const std::string diffFunc, const std::string Hconstraint){
   int viewnum(datamatF.n_rows);
   for(int i=0;i<viewnum;i++){
-    arma::mat D=AF[i];
-    arma::mat Adj=AF[i];
+    arma::sp_mat D=AF[i];
+    arma::sp_mat Adj=AF[i];
     D=D.transform([](double val){return std::max(val,0.0);});
     Adj=Adj.transform([](double val){return std::min(val,0.0);});
     Adj=-Adj;
     if((sum(diagvec(D))==0)&(lambdaWV[i]>0)){
-      D=arma::eye(WF[i].n_rows,WF[i].n_rows);
-          //Adjacency matrix is already 0s so no need to worry about it
-      }
+      D=arma::speye(WF[i].n_rows,WF[i].n_rows);
+      //Adjacency matrix is already 0s so no need to worry about it
+    }
     arma::mat numerW(WF[i].n_rows,WF[i].n_cols,arma::fill::value(0.0));
     arma::mat denomW(WF[i].n_rows,WF[i].n_cols,arma::fill::value(0.0));
     if(diffFunc=="fr"){
@@ -164,23 +164,23 @@ void perviewNMFMUR(const arma::field<arma::mat>& datamatF, arma::field<arma::mat
       arma::mat WHinv=WF[i]*H.t();
       WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
       WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::mat XWHinv=datamatF[i]%WHinv;
+      arma::mat XWHinv(datamatF[i]%WHinv);
       numerW=numerW+XWHinv*H;
       denomW=denomW+repmat(sum(H),WF[i].n_rows,1);
     }else if (diffFunc=="klm"){
       arma::mat WHinv=WF[i]*H.t();
       WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
       WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::mat XWHinv=datamatF[i]%WHinv;
+      arma::sp_mat XWHinv(datamatF[i]%WHinv);
       numerW=numerW+XWHinv*H;
     }else if (diffFunc=="is"){
       arma::mat WHinv=WF[i]*H.t();
       WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
       WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::mat XWHinv=datamatF[i]%WHinv;
+      arma::sp_mat XWHinv(datamatF[i]%WHinv);
       arma::mat WHinvsquare=WHinv.transform([](double val){return pow(val,2);});
       WHinvsquare=WHinvsquare.transform([](double val){return std::max(val,1e-16);});
-      arma::mat XWHinvsquare=datamatF[i]%WHinvsquare;
+      arma::sp_mat XWHinvsquare(datamatF[i]%WHinvsquare);
       numerW=numerW+XWHinvsquare*H;
       denomW=denomW+XWHinv*H;
     }
@@ -199,31 +199,34 @@ void perviewNMFMUR(const arma::field<arma::mat>& datamatF, arma::field<arma::mat
 
   arma::mat regnumerH(H.n_rows,H.n_cols,arma::fill::value(0.0));
   arma::mat regdenomH(H.n_rows,H.n_cols,arma::fill::value(0.0));
-//Adding in column regularization to improve identifiability
-//normalize H to have l2 norm equal to 1
-//new additions are all multiplied by HHones for reference later
-//Since H is non-negative, |H|=H and is differentiable for all H
+  //Adding in column regularization to improve identifiability
+  //normalize H to have l2 norm equal to 1
+  //new additions are all multiplied by HHones for reference later
+  //Since H is non-negative, |H|=H and is differentiable for all H
   //arma::mat Hones= H.ones();
 
-//Now we need to divide each column by the squared L2 norm of the corresponding
-//column entries of HHones.Since each entry is 1, this is the same as
-//dividing by the the number of rows of HHones.
-//See Douglas, 2000; Fu 2018.
+  //Now we need to divide each column by the squared L2 norm of the corresponding
+  //column entries of HHones.Since each entry is 1, this is the same as
+  //dividing by the the number of rows of HHones.
+  //See Douglas, 2000; Fu 2018.
   for(int i=0;i<viewnum;i++){
     if(diffFunc=="fr"){
       arma::mat WW=WF[i].t()*WF[i];
-//Take gradient with normalized parameters
+
+      //Take gradient with normalized parameters
       InumerH=H*WW;
       IdenomH=datamatF[i]*H;
       if(Hconstraint!="None"){
         regnumerH=regFunc(IdenomH,H,Hconstraint);
         regdenomH=regFunc(InumerH,H,Hconstraint);
       }
+
     } else if(diffFunc=="klp"){
       arma::mat WHinv=WF[i]*H.t();
       WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
       WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::mat XWHinv=datamatF[i]%WHinv;
+      arma::sp_mat XWHinv(datamatF[i]%WHinv);
+
       InumerH=XWHinv.t()*WF[i];
       IdenomH=repmat(sum(WF[i]),H.n_rows,1);
       if(Hconstraint!="None"){
@@ -231,31 +234,31 @@ void perviewNMFMUR(const arma::field<arma::mat>& datamatF, arma::field<arma::mat
         regdenomH=regFunc(InumerH,H,Hconstraint);
       }
     } else if(diffFunc=="klm"){
+
       arma::mat WHinv=WF[i]*H.t();
       WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
       WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::mat XWHinv=datamatF[i]%WHinv;
+      arma::sp_mat XWHinv(datamatF[i]%WHinv);
       InumerH=XWHinv.t()*WF[i];
       if(Hconstraint!="None"){
+        //Here regnumerH and IdenomH are not updated since the gradient is all negative
         regdenomH=regFunc(InumerH,H,Hconstraint);
       }
-      //Here regnumerH and IdenomH are not updated since the gradient is all negative
     } else if(diffFunc=="is"){
-      //NEED TO EDIT HONES
       arma::mat WHinv=WF[i]*H.t();
       WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
       WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::mat XWHinv=datamatF[i]%WHinv;
+      arma::sp_mat XWHinv(datamatF[i]%WHinv);
       arma::mat WHinvsquare=WHinv.transform([](double val){return pow(val,2);});
       WHinvsquare=WHinvsquare.transform([](double val){return std::max(val,1e-16);});
-      arma::mat XWHinvsquare=datamatF[i]%WHinvsquare;
+      arma::sp_mat XWHinvsquare(datamatF[i]%WHinvsquare);
       InumerH=XWHinvsquare.t()*WF[i];
       IdenomH=XWHinv.t()*WF[i];
       if(Hconstraint!="None"){
         regnumerH=regFunc(IdenomH,H,Hconstraint);
         regdenomH=regFunc(InumerH,H,Hconstraint);
       }
-      }
+    }
     numerH=numerH+InumerH+regnumerH;
     denomH=denomH+IdenomH+regdenomH;
   }
@@ -264,26 +267,27 @@ void perviewNMFMUR(const arma::field<arma::mat>& datamatF, arma::field<arma::mat
     if(Hconstraint!="None"){
       regnumerH=regFunc(IdenomH,H,Hconstraint);
     }
+
     numerH=numerH+lambdaH*regnumerH;
     denomH=denomH+lambdaH*IdenomH;
   }
   NMFinview(H,denomH,numerH);
   H=H.transform([](double val){return(val<1e-10)? double(0) : double(val);});
+
   normalizeH(H,Hconstraint);
 }
 //' @title jrSiCKLSNMF
-//' @description
-//' Perform joint non-negative matrix factorization (NMF) across multiple views of single cell data.
-//' Users can choose to use the Poisson Kullback-Leibler divergence, the Frobenius norm, the
-//' Multinomial Kullback Leibler divergence, or the Itakura-Saitō divergence. Users can also
-//' set graph regularization constraints on W and sparsity constraints on H. This updates WL and H.
+//' @description Perform joint non-negative matrix factorization (NMF) across multiple views of single cell data.
+//' Users can choose to use the Poisson Kullback-Leibler divergence or the Frobenius norm.
+//' Users can also set graph regularization constraints on W and sparsity constraints on H.
+//' This function updates WL and H.
 //' @name jrSiCKLSNMF
-//' @param datamatL An R list where each entry contains an X matrix corresponding to a single cell data view
+//' @param datamatL An R list where each entry contains a sparse X matrix corresponding to a single cell data view
 //' Each X is m^v features by n cells. Features can differ across matrices; however, n must be the same for
 //' each view. All data are measured on the same set of cells
 //' @param WL An R list containing initialized values for the W within each view. These are passed by reference
 //' @param H A matrix containing initialized values for the shared H
-//' @param AL An R list containing
+//' @param AL An R list containing all of the graph laplacians in sparse format
 //' @param lambdaWL A list of each lambdaW for each view
 //' @param lambdaH A double containing the desired value for H
 //' @param diffFunc A string indicating what type of divergence to use. It is Poisson Kulback Leibler by default
@@ -297,55 +301,57 @@ void perviewNMFMUR(const arma::field<arma::mat>& datamatF, arma::field<arma::mat
 //' @returns An R list containing values for the objective function.
 //' @export
 // [[Rcpp::export]]
-Rcpp::List jrSiCKLSNMF(const Rcpp::List& datamatL, Rcpp::List& WL, arma::mat& H,
-                   const Rcpp::List& AL,const Rcpp::List& lambdaWL,
-                   const double& lambdaH,const std::string diffFunc="klp",
-                   const std::string Hconstraint="L1Norm",const double differr=1e-8,
-                   const double rounds=300, bool display_progress=true){
-  int viewnum(datamatL.size());
-  try{
-    ErrorCheck(diffFunc,Hconstraint);
-  }catch(invalid_argument& e){
-    Rcerr <<e.what()<<endl;
-    return NULL;
-  }
-  //First convert all Rcpp lists to fields. We will return WL at the end
-  arma::field<arma::mat> datamatF(viewnum,1);
-  arma::field<arma::mat> WF(viewnum,1);
-  arma::vec lambdaWV(viewnum);
-  arma::field<arma::mat> AF(viewnum,1);
-  for(int i=0; i<viewnum;i++){
-    datamatF[i]=as<arma::mat>(datamatL[i]);
-    WF[i]=as<arma::mat>(WL[i]);
-    AF[i]=as<arma::mat>(AL[i]);
-    lambdaWV[i]=as<double>(lambdaWL[i]);
-  }
-  std::vector<double> LL;
-  double initloss;
-  initloss=losscalc(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc);
-  LL.push_back(initloss);
-  Progress p(rounds,display_progress);
-//Ensure that each column of H is l1 normalized (since all positive, the derivative
-//of the norm is differentiable everywhere)
-  H=normalise(H);
-  for(int i=0;i<rounds;i++){
-    if(Progress::check_abort()){
-      return Rcpp::List::create(Rcpp::Named("Loss")=LL);
-    }
-    p.increment();
-    perviewNMFMUR(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc,Hconstraint);
-    double liki=losscalc(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc);
-    LL.push_back(liki);
-    if(abs((LL.end()[-2]-LL.end()[-1]))<differr*LL.end()[-2]){
-      break;
-      }
-    if(i==rounds-1){
-      Rcout<<"Algorithm not converged. Maximum number of rounds reached. Final update is: "<<(abs((LL.end()[-2]-LL.end()[-1]))/LL.end()[-2])*100<<"%.";
-    }
-    }
-  for(int i=0; i<viewnum;i++){
-    WL[i]=WF[i];
-  }
-  return Rcpp::List::create(Rcpp::Named("Loss")=LL);
+ Rcpp::List jrSiCKLSNMF(const Rcpp::List& datamatL, Rcpp::List& WL, arma::mat& H,
+                        const Rcpp::List& AL,const Rcpp::List& lambdaWL,
+                        const double& lambdaH=0.0,const std::string diffFunc="klp",
+                        const std::string Hconstraint="L2Norm",const double differr=1e-6,
+                        const double rounds=10000, bool display_progress=true){
+   int viewnum(datamatL.size());
+   try{
+     ErrorCheck(diffFunc,Hconstraint);
+   }catch(invalid_argument& e){
+     Rcerr <<e.what()<<endl;
+     return NULL;
+   }
+   //First convert all Rcpp lists to fields. We will return WL at the end
+   arma::field<arma::sp_mat> datamatF(viewnum,1);
+   arma::field<arma::mat> WF(viewnum,1);
+   arma::vec lambdaWV(viewnum);
+   arma::field<arma::sp_mat> AF(viewnum,1);
+   for(int i=0; i<viewnum;i++){
+     datamatF[i]=as<arma::sp_mat>(datamatL[i]);
+     WF[i]=as<arma::mat>(WL[i]);
+     AF[i]=as<arma::sp_mat>(AL[i]);
+     lambdaWV[i]=as<double>(lambdaWL[i]);
+   }
+   std::vector<double> LL;
+   double initlikelihood;
+   initlikelihood=losscalc(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc);
+   LL.push_back(initlikelihood);
+   Progress p(rounds,display_progress);
+   //Ensure that each column of H is L2 normalized (since all positive, the derivative
+   //of the norm is differentiable everywhere)
+   H=normalise(H);
+   for(int i=0;i<rounds;i++){
+     if(Progress::check_abort()){
+       return Rcpp::List::create(Rcpp::Named("W")=WL,
+                                 Rcpp::Named("H")=H,
+                                 Rcpp::Named("Loss")=LL);
+     }
+     p.increment();
+     perviewNMFMUR(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc,Hconstraint);
+     double liki=losscalc(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc);
+     LL.push_back(liki);
+     if(abs((LL.end()[-2]-LL.end()[-1]))<differr*LL.end()[-2]){
+       break;
+     }
+     if(i==rounds-1){
+       Rcout<<"Algorithm not converged. Maximum number of rounds reached. Final update is: "<<(abs((LL.end()[-2]-LL.end()[-1]))/LL.end()[-2])*100<<"%.";
+     }
+   }
+   for(int i=0; i<viewnum;i++){
+     WL[i]=WF[i];
+   }
+   return Rcpp::List::create(Rcpp::Named("Loss")=LL);
 
-}
+ }
