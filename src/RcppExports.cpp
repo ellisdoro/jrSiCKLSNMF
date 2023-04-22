@@ -12,29 +12,36 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // jrSiCKLSNMF
-Rcpp::List jrSiCKLSNMF(const Rcpp::List& datamatL, Rcpp::List& WL, arma::mat& H, const Rcpp::List& AL, const Rcpp::List& lambdaWL, const double& lambdaH, const std::string diffFunc, const std::string Hconstraint, const double differr, const double rounds, bool display_progress);
-RcppExport SEXP _jrSiCKLSNMF_jrSiCKLSNMF(SEXP datamatLSEXP, SEXP WLSEXP, SEXP HSEXP, SEXP ALSEXP, SEXP lambdaWLSEXP, SEXP lambdaHSEXP, SEXP diffFuncSEXP, SEXP HconstraintSEXP, SEXP differrSEXP, SEXP roundsSEXP, SEXP display_progressSEXP) {
+Rcpp::List jrSiCKLSNMF(const Rcpp::List& datamatL, Rcpp::List& WL, arma::mat& H, const Rcpp::List& AdjL, const Rcpp::List& DL, const Rcpp::List& lambdaWL, const double& lambdaH, const arma::uvec& initsamp, bool suppress_warnings, const std::string diffFunc, const std::string Hconstraint, const double differr, const double rounds, bool display_progress, bool online, int batchsize, bool random_W_updates, int minrounds);
+RcppExport SEXP _jrSiCKLSNMF_jrSiCKLSNMF(SEXP datamatLSEXP, SEXP WLSEXP, SEXP HSEXP, SEXP AdjLSEXP, SEXP DLSEXP, SEXP lambdaWLSEXP, SEXP lambdaHSEXP, SEXP initsampSEXP, SEXP suppress_warningsSEXP, SEXP diffFuncSEXP, SEXP HconstraintSEXP, SEXP differrSEXP, SEXP roundsSEXP, SEXP display_progressSEXP, SEXP onlineSEXP, SEXP batchsizeSEXP, SEXP random_W_updatesSEXP, SEXP minroundsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const Rcpp::List& >::type datamatL(datamatLSEXP);
     Rcpp::traits::input_parameter< Rcpp::List& >::type WL(WLSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type H(HSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type AL(ALSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type AdjL(AdjLSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type DL(DLSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type lambdaWL(lambdaWLSEXP);
     Rcpp::traits::input_parameter< const double& >::type lambdaH(lambdaHSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type initsamp(initsampSEXP);
+    Rcpp::traits::input_parameter< bool >::type suppress_warnings(suppress_warningsSEXP);
     Rcpp::traits::input_parameter< const std::string >::type diffFunc(diffFuncSEXP);
     Rcpp::traits::input_parameter< const std::string >::type Hconstraint(HconstraintSEXP);
     Rcpp::traits::input_parameter< const double >::type differr(differrSEXP);
     Rcpp::traits::input_parameter< const double >::type rounds(roundsSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(jrSiCKLSNMF(datamatL, WL, H, AL, lambdaWL, lambdaH, diffFunc, Hconstraint, differr, rounds, display_progress));
+    Rcpp::traits::input_parameter< bool >::type online(onlineSEXP);
+    Rcpp::traits::input_parameter< int >::type batchsize(batchsizeSEXP);
+    Rcpp::traits::input_parameter< bool >::type random_W_updates(random_W_updatesSEXP);
+    Rcpp::traits::input_parameter< int >::type minrounds(minroundsSEXP);
+    rcpp_result_gen = Rcpp::wrap(jrSiCKLSNMF(datamatL, WL, H, AdjL, DL, lambdaWL, lambdaH, initsamp, suppress_warnings, diffFunc, Hconstraint, differr, rounds, display_progress, online, batchsize, random_W_updates, minrounds));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_jrSiCKLSNMF_jrSiCKLSNMF", (DL_FUNC) &_jrSiCKLSNMF_jrSiCKLSNMF, 11},
+    {"_jrSiCKLSNMF_jrSiCKLSNMF", (DL_FUNC) &_jrSiCKLSNMF_jrSiCKLSNMF, 18},
     {NULL, NULL, 0}
 };
 

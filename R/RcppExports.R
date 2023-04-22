@@ -12,9 +12,15 @@
 #' each view. All data are measured on the same set of cells
 #' @param WL An R list containing initialized values for the W within each view. These are passed by reference
 #' @param H A matrix containing initialized values for the shared H
-#' @param AL An R list containing all of the graph laplacians in sparse format
+#' @param AdjL An R list containing all of the adjacency matrices for the
+#' feature-feature similarity graphs in sparse format. Note that D-Adj is the
+#' graph Laplacian
+#' @param DL An R list containing all of the degree matrices of the
+#' feature-feature similarity graphs. Note that D-Adj is the graph Laplacian
 #' @param lambdaWL A list of each lambdaW for each view
 #' @param lambdaH A double containing the desired value for H
+#' @param initsamp A vector of randomly selected rows of H on which to run the objective function
+#' @param suppress_warnings Indicates whether warnings should be suppressed
 #' @param diffFunc A string indicating what type of divergence to use. It is Poisson Kulback Leibler by default
 #' @param Hconstraint A string that indicates whether you want to force constraints on the rows of H. Enter "None" for
 #' no constraints, enter "L1Norm" to ensure all rows of H sum to 1, and "L2Norm" to ensure that the the
@@ -23,9 +29,15 @@
 #' @param differr A double containing the tolerance
 #' @param rounds A double containing the number of rounds
 #' @param display_progress A boolean to indicate whether the user wants to display the progress
+#' @param online A boolean to indicate whether the user would like to use the online version of the algorithm.
+#' The online version
+#' @param batchsize Number of batches for online updates
+#' @param random_W_updates Indicates whether or not to use a random_W_updates algorithm for updating
+#' the W lists. If true, will only update W every 5 iterations.
+#' @param minrounds A minimum number of rounds for the algorithm to run. Most useful for the online algorithm
 #' @returns An R list containing values for the objective function.
 #' @export
-jrSiCKLSNMF <- function(datamatL, WL, H, AL, lambdaWL, lambdaH = 0.0, diffFunc = "klp", Hconstraint = "L2Norm", differr = 1e-6, rounds = 10000, display_progress = TRUE) {
-    .Call(`_jrSiCKLSNMF_jrSiCKLSNMF`, datamatL, WL, H, AL, lambdaWL, lambdaH, diffFunc, Hconstraint, differr, rounds, display_progress)
+jrSiCKLSNMF <- function(datamatL, WL, H, AdjL, DL, lambdaWL, lambdaH, initsamp, suppress_warnings, diffFunc = "klp", Hconstraint = "None", differr = 1e-6, rounds = 1000, display_progress = TRUE, online = TRUE, batchsize = 100L, random_W_updates = TRUE, minrounds = 100L) {
+    .Call(`_jrSiCKLSNMF_jrSiCKLSNMF`, datamatL, WL, H, AdjL, DL, lambdaWL, lambdaH, initsamp, suppress_warnings, diffFunc, Hconstraint, differr, rounds, display_progress, online, batchsize, random_W_updates, minrounds)
 }
 

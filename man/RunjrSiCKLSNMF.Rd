@@ -8,8 +8,16 @@ RunjrSiCKLSNMF(
   SickleJr,
   rounds = 30000,
   differr = 1e-06,
-  diffFunc = "klp",
-  display_progress = TRUE
+  display_progress = TRUE,
+  lossonsubset = FALSE,
+  losssubsetsize = dim(SickleJr@H)[1],
+  online = FALSE,
+  batchsize = 1000,
+  random_W_updates = FALSE,
+  seed = NULL,
+  minrounds = 200,
+  suppress_warnings = FALSE,
+  subsample = 1:dim(SickleJr@normalized.count.matrices[[1]])[2]
 )
 }
 \arguments{
@@ -19,9 +27,28 @@ RunjrSiCKLSNMF(
 
 \item{differr}{Tolerance for updating. Defaults to 1e-6.}
 
-\item{diffFunc}{choose between "klp" for Poisson-based kullback leibler divergence}
-
 \item{display_progress}{whether to display the progress bar for jrSiCKLSNMF}
+
+\item{lossonsubset}{Indicates whether you will be using a subset to calculate the loss function
+rather than the whole dataset}
+
+\item{losssubsetsize}{Size of the subset of data to calculate the loss on}
+
+\item{online}{Indicates whether the algorithm will be online or not}
+
+\item{batchsize}{indicates size of batch for large matrices.}
+
+\item{random_W_updates}{indicates whether or not to use random_W_updates updates (i.e. only update
+W once per online iteration)}
+
+\item{seed}{Number to specify seed desired.}
+
+\item{minrounds}{A minimum number of rounds to use. Most helpful for the online algorithm}
+
+\item{suppress_warnings}{Indicates whether or not you want warnings suppressed}
+
+\item{subsample}{Used primarily when finding an appropriate number of latent factors. Defaults
+to all cells, but you can run jrSiCKLSNMF on just a subset of cells.}
 }
 \value{
 a SickleJr object with updated W matrices, updated H matrices, and a vector of values for

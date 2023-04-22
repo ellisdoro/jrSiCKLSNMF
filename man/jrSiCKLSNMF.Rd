@@ -8,14 +8,21 @@ jrSiCKLSNMF(
   datamatL,
   WL,
   H,
-  AL,
+  AdjL,
+  DL,
   lambdaWL,
-  lambdaH = 0,
+  lambdaH,
+  initsamp,
+  suppress_warnings,
   diffFunc = "klp",
-  Hconstraint = "L2Norm",
+  Hconstraint = "None",
   differr = 1e-06,
-  rounds = 10000,
-  display_progress = TRUE
+  rounds = 1000,
+  display_progress = TRUE,
+  online = TRUE,
+  batchsize = 100L,
+  random_W_updates = TRUE,
+  minrounds = 100L
 )
 }
 \arguments{
@@ -27,11 +34,20 @@ each view. All data are measured on the same set of cells}
 
 \item{H}{A matrix containing initialized values for the shared H}
 
-\item{AL}{An R list containing all of the graph laplacians in sparse format}
+\item{AdjL}{An R list containing all of the adjacency matrices for the
+feature-feature similarity graphs in sparse format. Note that D-Adj is the
+graph Laplacian}
+
+\item{DL}{An R list containing all of the degree matrices of the
+feature-feature similarity graphs. Note that D-Adj is the graph Laplacian}
 
 \item{lambdaWL}{A list of each lambdaW for each view}
 
 \item{lambdaH}{A double containing the desired value for H}
+
+\item{initsamp}{A vector of randomly selected rows of H on which to run the objective function}
+
+\item{suppress_warnings}{Indicates whether warnings should be suppressed}
 
 \item{diffFunc}{A string indicating what type of divergence to use. It is Poisson Kulback Leibler by default}
 
@@ -45,6 +61,16 @@ will perform regularization on the columns of the transpose of H.}
 \item{rounds}{A double containing the number of rounds}
 
 \item{display_progress}{A boolean to indicate whether the user wants to display the progress}
+
+\item{online}{A boolean to indicate whether the user would like to use the online version of the algorithm.
+The online version}
+
+\item{batchsize}{Number of batches for online updates}
+
+\item{random_W_updates}{Indicates whether or not to use a random_W_updates algorithm for updating
+the W lists. If true, will only update W every 5 iterations.}
+
+\item{minrounds}{A minimum number of rounds for the algorithm to run. Most useful for the online algorithm}
 }
 \value{
 An R list containing values for the objective function.

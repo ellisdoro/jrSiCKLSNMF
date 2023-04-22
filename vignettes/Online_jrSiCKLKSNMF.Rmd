@@ -1,0 +1,89 @@
+---
+title: "Online jrSiCKLSNMF Tutorial"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Online jrSiCKLSNMF Tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\usepackage[UTF-8]{inputenc}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Set up
+For this walkthrough, we will be working with simulated data object \textsc{SimData}. These data were generated from GSE130399 using the packages SparSim and simATAC. The details for the simulations can be found in our paper. \textsc{SimData} has already been QC'd; however, when working with real data, you should QC your data and select features that appear in at least 10 cells for both views. After loading \textsc{jrSiCKLSNMF} into R, you should have access to \textsc{SimData}.
+
+Here, we set up our data as in the getting started and getting started L2 Norm vignettes. Please refer to these for details on setup. Here, we will show the sparsity constraint:
+
+```{r loadjrSiCKLSNMF}
+library(jrSiCKLSNMF)
+data("SimData")
+DataMatrices<-SimData$Xmatrices
+cell_type<-SimData$cell_type
+SimSickleJr<-CreateSickleJr(DataMatrices,names=list("RNA","ATAC"))
+rm(DataMatrices,SimData)
+SimSickleJr<-AddSickleJrMetaData(SimSickleJr,cell_type,"true_cell_type")
+rm(cell_type)
+set.seed(10)
+SimSickleJr<-BuildKNNGraphLaplacians(SimSickleJr)
+SimSickleJr<-SetLambdasandRowReg(SimSickleJr,lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+SimSickleJr<-NormalizeCountMatrices(SimSickleJr)
+SimSickleJr<-GenerateWmatricesandHmatrix(SimSickleJr,d=5)
+```
+
+
+# Running online jrSiCKLSNMF
+
+Finally, we can run jrSicKLSNMF. By default, we constrain the rows of $\textbf{H}$ such that the L2 Norm of each row is equal to 1. Please note that we store $\textbf{H}$ as $\textbf{H}^T$. Please note that, for real data, you should use enough rounds to reach convergence of $10^{-6}$. Note that because the online algorithm is stochastic, it performs differently from the regular
+
+```{r runningjrsickls}
+start.time<-Sys.time()
+SimSickleJr<-RunjrSiCKLSNMF(SimSickleJr,rounds=300,differr=1e-6,online=TRUE,random_W_updates=TRUE,batchsize=100,seed=8,minrounds = 300)
+stop.time<-Sys.time()
+stop.time-start.time
+```
+# Online Diagnostic Plots
+
+For the online algorithm, since it is a stochastic process, the loss tends to become unstable after a certain number of iterations but stays within a band. To ensure that you have reached this point of stability, you should check the plot of the loss. For this plot, we can see that the loss remains relatively stable after about 200 iterations.
+
+```{r onlineplotdiagnostic}
+OnlineDiagnosticPlot(SimSickleJr)
+```
+
+# Post-hoc Analyses
+
+After this, we can perform cell clustering. In version 1.0, users can use k-means or spectral clustering. Here, we demonstrate k-means
+
+```{r clustering}
+SimSickleJr<-ClusterSickleJr(SimSickleJr,numclusts=3)
+```
+
+Finally, we can calculate and then plot the UMAP of our SickleJr. Note that if you would like to plot the UMAP of the compressed $\mathbf{W}^v\mathbf{H}$ matrix, please enter the number corresponding to the view you wish to see. For the plots, you can either color based off of identified cluster or based off of metadata.
+
+```{r UMAPplots}
+SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr)
+#Plotting based off of cluster
+PlotSickleJrUMAP(SimSickleJr,title="K-means clusters")
+#Plotting based off of true cell type metadata
+PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types",legendname="True Cell Types")
+```
+
+We can also visualize data in the RNA view and the ATAC view. 
+
+```{r UMAPplotsWH}
+SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,view=1)
+PlotSickleJrUMAP(SimSickleJr,title="K-means clusters: RNA view",
+                 umap.view="W1H")
+PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",
+                 title="True Cell Type: RNA view",legendname="True Cell Types",
+                 umap.view="W1H")
+SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,view=2)
+PlotSickleJrUMAP(SimSickleJr,title="K-means clusters: ATAC view",umap.view="W2H")
+PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",
+                 title="True Cell Type:ATAC view",legendname="True Cell Types",
+                 umap.view="W2H")
+```

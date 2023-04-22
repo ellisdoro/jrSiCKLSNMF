@@ -2,22 +2,48 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{GenerateWmatricesandHmatrix}
 \alias{GenerateWmatricesandHmatrix}
-\title{GenerateWmatricesandHmatrix}
+\title{Generate the W and H matrices}
 \usage{
-GenerateWmatricesandHmatrix(SickleJr, d = 10, rowReg = "L2Norm")
+GenerateWmatricesandHmatrix(
+  SickleJr,
+  d = 10,
+  random = FALSE,
+  numberReps = 100,
+  seed = 5,
+  online = FALSE,
+  batchsize = -1,
+  random_W_updates = FALSE,
+  subsample = 1:dim(SickleJr@count.matrices[[1]])[2]
+)
 }
 \arguments{
 \item{SickleJr}{a SickleJr object}
 
 \item{d}{number of latent factors to use. Defaults to 10.}
 
-\item{rowReg}{Choose whether or not to enforce constraints on the rows. Enter "None" for no constraints
-Defaults to L2Norm.}
+\item{random}{Choose whether to use nndsvd or random initialization. Defaults to nndsvd}
+
+\item{numberReps}{Number of random initializations to use. Defaults to 5.}
+
+\item{seed}{Random seed for reproducibility with random initializations}
+
+\item{online}{Indicates whether or not to use an online algorithm}
+
+\item{batchsize}{Indicates size of batches for online NMF}
+
+\item{random_W_updates}{Indicates whether to only update W once per round of
+H updates. Only appropriate for online algorithms and for randomly generated
+algorithms}
+
+\item{subsample}{A vector of values to use for subsampling. Only appropriate
+for determining proper values for d.}
 }
 \value{
 SickleJr A SickleJr object with W and H matrices added.
 }
 \description{
-Perform normalization for count data. If you are planning to use the Frobenius norm,
-set frob=TRUE
+Create the W and H matrices via non-negative double singular
+value decomposition (nndsvd) or randomization. For randomization, we will run
+the algorithm for 10 steps at the chosen value and pick the W and H values with
+the lowest achieved loss
 }

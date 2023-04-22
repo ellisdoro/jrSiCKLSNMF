@@ -2,14 +2,17 @@ Package: jrSiCKLSNMF
 Type: Package
 Title: Joint graph Regularized Single-Cell Kullback-Leibler Sparse Non-negative Matrix Factorization
 Version: 1.1
-Date: 2023-01-03
+Date: 2023-22-04
 Author: Dorothy Ellis
 Maintainer: Dorothy Ellis <ddemoreellis@gmail.com>
 Description: The package jrSiCKLSNMF contains methods to perform Joint graph Regularized Single-Cell Kullback-Leibler Sparse Non-negative Matrix Factorization on multi-assay single-cell omics data.
 License: GPL (>= 2)
 Encoding: UTF-8
 RoxygenNote: 7.2.3
-Imports: Rcpp (>= 1.0.9), scran, igraph, umap, kknn, ggplot2, methods, stats, rlang, Matrix
+Imports: Rcpp (>= 1.0.9), scran, igraph, umap, kknn, ggplot2, methods, stats, rlang, Matrix, data.table,parallel,pbapply,cluster,MASS,clValid,factoextra
+Suggests: 
+    knitr,
+    rmarkdown
 LinkingTo: Rcpp, RcppArmadillo, RcppProgress
 LazyData: true
-VIgnetteBuilder: knitr
+VignetteBuilder: knitr

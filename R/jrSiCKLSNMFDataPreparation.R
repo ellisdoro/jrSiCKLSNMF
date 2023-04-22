@@ -90,8 +90,23 @@
   # return matrices W and H
   list(W=W, H=H)
 }
+#A function that tests whether a matrix is sparse
+.is.sparseMatrix <- function(x) is(x, 'sparseMatrix')
 #a function that sparsifies the matrices in all of the lists
 .sparsify<-function(denselist){
   sparselist<-lapply(denselist,function(x) as(x,"sparseMatrix"))
   return(sparselist)
+}
+#List the columns of sparse matrices
+.listCols<-function(m){
+  res<-split(m@x,findInterval(seq_len(nnzero(m)),m@p,left.open=TRUE))
+  names(res)<-colnames(m)
+  res
+}
+#List the rows of sparse matrices
+.listRows<-function(m){
+  mt<-t(m)
+  res<-split(mt@x,findInterval(seq_len(nnzero(mt)),mt@p,left.open=TRUE))
+  names(res)<-colnames(mt)
+  res
 }

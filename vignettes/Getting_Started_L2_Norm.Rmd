@@ -1,8 +1,8 @@
 ---
-title: "Getting started with jrSiCKLSNMF"
+title: "Getting started with jrSiCKLSNMF with an L2 Norm Constraint on the columns of H"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting started with jrSiCKLSNMF}
+  %\VignetteIndexEntry{Getting started with jrSiCKLSNMF with an L2 Norm Constraint on the columns of H}
   %\VignetteEngine{knitr::rmarkdown}
   %\usepackage[UTF-8]{inputenc}
 ---
@@ -57,7 +57,7 @@ SimSickleJr<-BuildKNNGraphLaplacians(SimSickleJr)
 For values $\lambda_{W^v}$ and our value $\lambda_H$, when we constrain the rows of $\textbf{H}$ such that the L2 Norm of each row is equal to 1 (the default), we suggest setting $\lambda_{\textbf W^{RNA}}=3$, $\lambda_{\textbf W^{ATAC}}=15$, and $\lambda_{\textbf H}=0$. When not using this constraint, we suggest using $\lambda_{\textbf W^{RNA}}=10$, $\lambda_{W^{ATAC}}=50$, and $\lambda_{H}=500$. 
 
 ```{r setlambdas}
-SimSickleJr<-SetLambdasandRowReg(SimSickleJr,lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+SimSickleJr<-SetLambdasandRowReg(SimSickleJr,lambdaWlist=list(3,15),lambdaH=0,rowReg="L2Norm")
 ```
 
 Next, we will normalize our count matrices using median library size normalization.
@@ -66,14 +66,24 @@ Next, we will normalize our count matrices using median library size normalizati
 SimSickleJr<-NormalizeCountMatrices(SimSickleJr)
 ```
 
-Now we can make plots to determine an ideal number of latent factors. Here, 5 or 6 appears to be an ideal number of
-latent factors. Note that this does change depending on the initialization of the graph matrices and the seed for the number of initial samples; however, the ideal number appears to be between 4 and 7. To more accurately identify an ideal number of latent factors, perform more rounds. This is the opposite behavior of the  L2 Norm regularized version.
+
+
+Now we can make plots to determine an ideal number of latent factors. Here, 10 appears to be an ideal number of
+latent factors. Note that the L2 Norm regularization appears to use more latent factors than the sparsity regularization and also requires only 1 round to determine an elbow. 
 
 Also note that you should use more cores than 2 typically, and the default for this is 1 core fewer than the number of cores on your computer. R vignettes cannot be built using more than 2 cores.
 
 ```{r determineD}
-SimSickleJr<-PlotLossvsLatentFactors(SimSickleJr,d_vector=2:20,parallel = TRUE,rounds=100,subsampsize = 100,seed=15,nCores = 2)
+SimSickleJr<-PlotLossvsLatentFactors(SimSickleJr,d_vector=2:20,parallel = TRUE,rounds=1,seed=15,nCores = 2)
 ```
+For larger number of rounds, the L2 Norm regularized loss does not behave as the sparsity constraint does; as the number of rounds increases, the elbow becomes less clear. Therefore, it is not recommended to determine d using more rounds as it is for the sparsity constraint.
+
+```{r showtoomanyiters}
+SimSickleJr@latent.factor.elbow.values<-data.frame(NULL,NULL)
+SimSickleJr@WHinitials<-list()
+SimSickleJr<-PlotLossvsLatentFactors(SimSickleJr,d_vector=2:20,parallel = TRUE,rounds=100,seed=15,nCores=2)
+```
+
 If you have an idea of the number of latent factors you would like to use, you may generate the H and W matrices as below:
 
 ```{r initializeWH}
@@ -84,7 +94,7 @@ However, since we already calculated part of the W matrices and the shared H mat
 we can use the previously calculated values to run jrSiCKLSNMF.
 
 ```{r usepreviouslycalculated}
-SimSickleJr<-SetWandHfromWHinitials(SimSickleJr,d=5)
+SimSickleJr<-SetWandHfromWHinitials(SimSickleJr,d=10)
 ```
 
 # Running jrSiCKLSNMF
@@ -99,10 +109,9 @@ stop.time<-Sys.time()
 ```
 # Post-hoc Analyses
 
-After this, we can perform cell clustering. In version 1.0, users can use k-means or spectral clustering. Here, we demonstrate k-means. We can first determine an optimal number of clusters using the fviz_nbclust function from the library factoextra and clValid from package clValid. From the plots and diagnostics, we can see that 3 appear to be the optimal number of clusters.
+After this, we can perform cell clustering. In version 1.0, users can use k-means or spectral clustering. Here, we demonstrate k-means
 
 ```{r clustering}
-SimSickleJr<-determineClusters(SimSickleJr)
 SimSickleJr<-ClusterSickleJr(SimSickleJr,numclusts=3)
 ```
 

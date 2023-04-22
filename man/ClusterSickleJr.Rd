@@ -19,5 +19,6 @@ ClusterSickleJr(SickleJr, numclusts, method = "kmeans", neighbors = NULL)
 a SickleJr object with added clustering information
 }
 \description{
-perform either kmeans or spectral clustering on the H matrix.
+Perform either K-means or spectral clustering on the H matrix.
+Defaults to kmeans.
 }

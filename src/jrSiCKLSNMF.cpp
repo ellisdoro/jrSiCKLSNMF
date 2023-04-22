@@ -5,23 +5,41 @@
 #include <progress_bar.hpp>
 #include <vector>
 #include <math.h>
+#include "Utils.h"
+#include <RcppArmadilloExtensions/sample.h>
 
 using namespace Rcpp;
-using namespace std;
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::depends(RcppProgress)]]
 
+arma::sp_mat col_sp(const arma::sp_mat& x,const arma::uvec& index) {
+  int n_cols = index.n_elem;
+  arma::sp_mat x_subset(x.n_rows,index.n_elem);
+  for(int i=0; i<n_cols; i++){
+    x_subset.col(i) = x.col(index(i));
+  }
+  return x_subset;}
+
+arma::sp_mat row_sp(const arma::sp_mat& x, const arma::uvec& index){
+  int n_rows=index.n_elem;
+  arma::sp_mat x_subset(index.n_elem,x.n_cols);
+  for(int i=0; i<n_rows; i++){
+    x_subset.row(i)=x.row(index(i));
+  }
+  return x_subset;}
+
 void ErrorCheck(std::string diffFunc, std::string Hconstraint){
   if((diffFunc!="klp")&(diffFunc!="klm")&(diffFunc!="fr")&(diffFunc!="is"))
-    throw invalid_argument("Please enter 'klp' for Kullback-Leibler divergence for count data, 'klm' for Kullback-Leibler divergence for proportional data, 'is' for Itakura-Saito divergence (spectra data), or 'fr' for Frobenius norm.");
+    throw std::invalid_argument("Please enter 'klp' for Kullback-Leibler divergence for count data, 'klm' for Kullback-Leibler divergence for proportional data, 'is' for Itakura-Saito divergence (spectra data), or 'fr' for Frobenius norm.");
   if((Hconstraint!="None")&(Hconstraint!="L1Norm")&(Hconstraint!="L2Norm")&(Hconstraint!="L1NormCol"))
-    throw invalid_argument("Please enter 'None' for no row constraints on H, 'L1Norm' for an L1 Norm constraint (i.e. all entries in a row sum to 1), 'L1NormCol' for an L1 Norm constraint (i.e. all entries in each column sum to 1), or 'L2Norm' for an L2 Norm constraint (i.e. the square root of the sum of squares of each row entry equals 1)");
+    throw std::invalid_argument("Please enter 'None' for no row constraints on H, 'L1Norm' for an L1 Norm constraint (i.e. all entries in a row sum to 1), 'L1NormCol' for an L1 Norm constraint (i.e. all entries in each column sum to 1), or 'L2Norm' for an L2 Norm constraint (i.e. the square root of the sum of squares of each row entry equals 1)");
 }
 
 
 double lossmatcalc(const arma::sp_mat& datamat, const arma::mat& W,
-                         const arma::mat& H, const arma::sp_mat& A,
+                         const arma::mat& H, const arma::sp_mat& Adj,
+                         const arma::sp_mat& D,
                          const double lambdaW, const double lambdaH,
                          const std::string diffFunc="klp",int numviews=2){
   double lik=0.0;
@@ -62,7 +80,7 @@ double lossmatcalc(const arma::sp_mat& datamat, const arma::mat& W,
   }
   if(lambdaW>0){
     arma::mat Wt=trans(W);
-    double traceWAW=arma::trace(Wt*A*W);
+    double traceWAW=arma::trace(Wt*(D-Adj)*W);
     lik=lik+0.5*lambdaW*traceWAW;
   }
   if(lambdaH>0){
@@ -76,13 +94,14 @@ double lossmatcalc(const arma::sp_mat& datamat, const arma::mat& W,
 }
 
 double losscalc(const arma::field<arma::sp_mat>& datamatF, const arma::field<arma::mat>& WF,
-                      const arma::mat& H,const arma::field<arma::sp_mat>& AF,
+                      const arma::mat& H,const arma::field<arma::sp_mat>& AdjF,
+                      const arma::field<arma::sp_mat>& DF,
                       arma::vec lambdaWV, const double& lambdaH,
                       const std::string& diffFunc="klp"){
   double lik=0.0;
   int viewnum(datamatF.n_rows);
   for(int i=0;i<viewnum;i++){
-    double liki=lossmatcalc(datamatF[i],WF[i],H,AF[i],lambdaWV[i],lambdaH,diffFunc,viewnum);
+    double liki=lossmatcalc(datamatF[i],WF[i],H,AdjF[i],DF[i],lambdaWV[i],lambdaH,diffFunc,viewnum);
     if (liki==-1){
       break;
     }else{
@@ -140,57 +159,12 @@ arma::mat regFunc(const arma::mat& denomnumer, const arma::mat& H, const std::st
 }
 
 void perviewNMFMUR(const arma::field<arma::sp_mat>& datamatF, arma::field<arma::mat>& WF,
-                   arma::mat& H,const arma::field<arma::sp_mat>& AF,
+                   arma::mat& H,const arma::field<arma::sp_mat>& AdjF,
+                   const arma::field<arma::sp_mat>& DF,
                    const arma::vec lambdaWV, const double lambdaH,
-                   const std::string diffFunc, const std::string Hconstraint){
+                   const std::string diffFunc, const std::string Hconstraint, bool random_W_updates=false,
+                   int batchiter=-1, int batchsize=-1){
   int viewnum(datamatF.n_rows);
-  for(int i=0;i<viewnum;i++){
-    arma::sp_mat D=AF[i];
-    arma::sp_mat Adj=AF[i];
-    D=D.transform([](double val){return std::max(val,0.0);});
-    Adj=Adj.transform([](double val){return std::min(val,0.0);});
-    Adj=-Adj;
-    if((sum(diagvec(D))==0)&(lambdaWV[i]>0)){
-      D=arma::speye(WF[i].n_rows,WF[i].n_rows);
-      //Adjacency matrix is already 0s so no need to worry about it
-    }
-    arma::mat numerW(WF[i].n_rows,WF[i].n_cols,arma::fill::value(0.0));
-    arma::mat denomW(WF[i].n_rows,WF[i].n_cols,arma::fill::value(0.0));
-    if(diffFunc=="fr"){
-      arma::mat HH=H.t()*H;
-      numerW=numerW+WF[i]*HH;
-      denomW=denomW+datamatF(i,0)*H;
-    }else if(diffFunc=="klp"){
-      arma::mat WHinv=WF[i]*H.t();
-      WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
-      WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::mat XWHinv(datamatF[i]%WHinv);
-      numerW=numerW+XWHinv*H;
-      denomW=denomW+repmat(sum(H),WF[i].n_rows,1);
-    }else if (diffFunc=="klm"){
-      arma::mat WHinv=WF[i]*H.t();
-      WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
-      WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::sp_mat XWHinv(datamatF[i]%WHinv);
-      numerW=numerW+XWHinv*H;
-    }else if (diffFunc=="is"){
-      arma::mat WHinv=WF[i]*H.t();
-      WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
-      WHinv=WHinv.transform([](double val){return 1/val;});
-      arma::sp_mat XWHinv(datamatF[i]%WHinv);
-      arma::mat WHinvsquare=WHinv.transform([](double val){return pow(val,2);});
-      WHinvsquare=WHinvsquare.transform([](double val){return std::max(val,1e-16);});
-      arma::sp_mat XWHinvsquare(datamatF[i]%WHinvsquare);
-      numerW=numerW+XWHinvsquare*H;
-      denomW=denomW+XWHinv*H;
-    }
-    if(lambdaWV[i]>0){
-      denomW=denomW+0.5*lambdaWV[i]*(D*WF[i]+D.t()*WF[i]);
-      numerW=numerW+0.5*lambdaWV[i]*(Adj*WF[i]+Adj.t()*WF[i]);
-    }
-    NMFinview(WF[i],denomW,numerW);
-    WF[i]=WF[i].transform([](double val){return(val<1e-10)? double(0) : double(val);});
-  }
   arma::mat numerH(H.n_rows,H.n_cols,arma::fill::value(0.0));
   arma::mat denomH(H.n_rows,H.n_cols,arma::fill::value(0.0));
 
@@ -275,6 +249,46 @@ void perviewNMFMUR(const arma::field<arma::sp_mat>& datamatF, arma::field<arma::
   H=H.transform([](double val){return(val<1e-10)? double(0) : double(val);});
 
   normalizeH(H,Hconstraint);
+  if(!random_W_updates||(random_W_updates&&(batchiter%batchsize==batchsize-1))){
+    for(int i=0;i<viewnum;i++){
+      arma::mat numerW(WF[i].n_rows,WF[i].n_cols,arma::fill::value(0.0));
+    arma::mat denomW(WF[i].n_rows,WF[i].n_cols,arma::fill::value(0.0));
+    if(diffFunc=="fr"){
+      arma::mat HH=H.t()*H;
+      numerW=numerW+WF[i]*HH;
+      denomW=denomW+datamatF(i,0)*H;
+    }else if(diffFunc=="klp"){
+      arma::mat WHinv=WF[i]*H.t();
+      WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
+      WHinv=WHinv.transform([](double val){return 1/val;});
+      arma::mat XWHinv(datamatF[i]%WHinv);
+      numerW=numerW+XWHinv*H;
+      denomW=denomW+repmat(sum(H),WF[i].n_rows,1);
+    }else if (diffFunc=="klm"){
+      arma::mat WHinv=WF[i]*H.t();
+      WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
+      WHinv=WHinv.transform([](double val){return 1/val;});
+      arma::sp_mat XWHinv(datamatF[i]%WHinv);
+      numerW=numerW+XWHinv*H;
+    }else if (diffFunc=="is"){
+      arma::mat WHinv=WF[i]*H.t();
+      WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
+      WHinv=WHinv.transform([](double val){return 1/val;});
+      arma::sp_mat XWHinv(datamatF[i]%WHinv);
+      arma::mat WHinvsquare=WHinv.transform([](double val){return pow(val,2);});
+      WHinvsquare=WHinvsquare.transform([](double val){return std::max(val,1e-16);});
+      arma::sp_mat XWHinvsquare(datamatF[i]%WHinvsquare);
+      numerW=numerW+XWHinvsquare*H;
+      denomW=denomW+XWHinv*H;
+    }
+    if(lambdaWV[i]>0){
+      denomW=denomW+0.5*lambdaWV[i]*(DF[i]*WF[i]+DF[i].t()*WF[i]);
+      numerW=numerW+0.5*lambdaWV[i]*(AdjF[i]*WF[i]+AdjF[i].t()*WF[i]);
+    }
+    NMFinview(WF[i],denomW,numerW);
+    WF[i]=WF[i].transform([](double val){return(val<1e-10)? double(0) : double(val);});
+    }}
+
 }
 //' @title jrSiCKLSNMF
 //' @description Perform joint non-negative matrix factorization (NMF) across multiple views of single cell data.
@@ -287,9 +301,15 @@ void perviewNMFMUR(const arma::field<arma::sp_mat>& datamatF, arma::field<arma::
 //' each view. All data are measured on the same set of cells
 //' @param WL An R list containing initialized values for the W within each view. These are passed by reference
 //' @param H A matrix containing initialized values for the shared H
-//' @param AL An R list containing all of the graph laplacians in sparse format
+//' @param AdjL An R list containing all of the adjacency matrices for the
+//' feature-feature similarity graphs in sparse format. Note that D-Adj is the
+//' graph Laplacian
+//' @param DL An R list containing all of the degree matrices of the
+//' feature-feature similarity graphs. Note that D-Adj is the graph Laplacian
 //' @param lambdaWL A list of each lambdaW for each view
 //' @param lambdaH A double containing the desired value for H
+//' @param initsamp A vector of randomly selected rows of H on which to run the objective function
+//' @param suppress_warnings Indicates whether warnings should be suppressed
 //' @param diffFunc A string indicating what type of divergence to use. It is Poisson Kulback Leibler by default
 //' @param Hconstraint A string that indicates whether you want to force constraints on the rows of H. Enter "None" for
 //' no constraints, enter "L1Norm" to ensure all rows of H sum to 1, and "L2Norm" to ensure that the the
@@ -298,55 +318,133 @@ void perviewNMFMUR(const arma::field<arma::sp_mat>& datamatF, arma::field<arma::
 //' @param differr A double containing the tolerance
 //' @param rounds A double containing the number of rounds
 //' @param display_progress A boolean to indicate whether the user wants to display the progress
+//' @param online A boolean to indicate whether the user would like to use the online version of the algorithm.
+//' The online version
+//' @param batchsize Number of batches for online updates
+//' @param random_W_updates Indicates whether or not to use a random_W_updates algorithm for updating
+//' the W lists. If true, will only update W every 5 iterations.
+//' @param minrounds A minimum number of rounds for the algorithm to run. Most useful for the online algorithm
 //' @returns An R list containing values for the objective function.
 //' @export
 // [[Rcpp::export]]
  Rcpp::List jrSiCKLSNMF(const Rcpp::List& datamatL, Rcpp::List& WL, arma::mat& H,
-                        const Rcpp::List& AL,const Rcpp::List& lambdaWL,
-                        const double& lambdaH=0.0,const std::string diffFunc="klp",
-                        const std::string Hconstraint="L2Norm",const double differr=1e-6,
-                        const double rounds=10000, bool display_progress=true){
+                        const Rcpp::List& AdjL, const Rcpp::List& DL,
+                        const Rcpp::List& lambdaWL,const double& lambdaH,
+                        const arma::uvec& initsamp, bool suppress_warnings,
+                        const std::string diffFunc="klp",
+                        const std::string Hconstraint="None",const double differr=1e-6,
+                        const double rounds=1000, bool display_progress=true,
+                        bool online=true, int batchsize=100,
+                        bool random_W_updates=true, int minrounds=100){
    int viewnum(datamatL.size());
    try{
      ErrorCheck(diffFunc,Hconstraint);
-   }catch(invalid_argument& e){
-     Rcerr <<e.what()<<endl;
+   }catch(std::invalid_argument& e){
+     Rcerr <<e.what()<<std::endl;
      return NULL;
    }
    //First convert all Rcpp lists to fields. We will return WL at the end
    arma::field<arma::sp_mat> datamatF(viewnum,1);
    arma::field<arma::mat> WF(viewnum,1);
    arma::vec lambdaWV(viewnum);
-   arma::field<arma::sp_mat> AF(viewnum,1);
+   arma::field<arma::sp_mat> DF(viewnum,1);
+   arma::field<arma::sp_mat> AdjF(viewnum,1);
+   arma::field<arma::sp_mat> datamatFsub(viewnum,1);
+   int numrowsH=H.n_rows;
+   arma::uvec numbercells=arma::linspace<arma::uvec>(0,numrowsH-1,numrowsH);
+   arma::field<arma::uvec> numberfeats(viewnum,1);
    for(int i=0; i<viewnum;i++){
      datamatF[i]=as<arma::sp_mat>(datamatL[i]);
      WF[i]=as<arma::mat>(WL[i]);
-     AF[i]=as<arma::sp_mat>(AL[i]);
+     int numrowsW=WF[i].n_rows;
+     numberfeats[i]=arma::linspace<arma::uvec>(0,numrowsW-1,numrowsW);
      lambdaWV[i]=as<double>(lambdaWL[i]);
+     AdjF[i]=as<arma::sp_mat>(AdjL[i]);
+     DF[i]=as<arma::sp_mat>(DL[i]);
+     if((sum(diagvec(DF[i]))==0)&(lambdaWV[i]>0)){
+        DF[i]=arma::speye(WF[i].n_rows,WF[i].n_rows);
+         //Adjacency matrix is already 0s so no need to worry about it
+       }
+     if(initsamp.n_elem!=H.n_rows){
+       arma::sp_mat subsetmati=col_sp(datamatF[i],initsamp);
+       datamatFsub[i]=subsetmati;
+     }
    }
+   arma::field<arma::mat> WFmin(WF);
+   arma::mat Hmin(H);
+   double minlik;
    std::vector<double> LL;
    double initlikelihood;
-   initlikelihood=losscalc(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc);
-   LL.push_back(initlikelihood);
+   if((initsamp.n_elem<H.n_rows)){
+    initlikelihood=losscalc(datamatFsub,WF,H.rows(initsamp),AdjF,DF,lambdaWV,lambdaH,diffFunc);
+     LL.push_back(initlikelihood);
+   } else{
+     initlikelihood=losscalc(datamatF,WF,H,AdjF,DF,lambdaWV,lambdaH,diffFunc);
+     LL.push_back(initlikelihood);
+   }
    Progress p(rounds,display_progress);
-   //Ensure that each column of H is L2 normalized (since all positive, the derivative
+   minlik=initlikelihood;
+   //Ensure that each column of H is normalized if necessary (since all positive, the derivative
    //of the norm is differentiable everywhere)
-   H=normalise(H);
+   normalizeH(H,Hconstraint);
    for(int i=0;i<rounds;i++){
      if(Progress::check_abort()){
-       return Rcpp::List::create(Rcpp::Named("W")=WL,
-                                 Rcpp::Named("H")=H,
-                                 Rcpp::Named("Loss")=LL);
+       return Rcpp::List::create(Rcpp::Named("Loss")=LL);
      }
      p.increment();
-     perviewNMFMUR(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc,Hconstraint);
-     double liki=losscalc(datamatF,WF,H,AF,lambdaWV,lambdaH,diffFunc);
-     LL.push_back(liki);
-     if(abs((LL.end()[-2]-LL.end()[-1]))<differr*LL.end()[-2]){
+     if(online){
+       numbercells=Rcpp::RcppArmadillo::sample(numbercells,numbercells.size(),false);
+       auto numbersPartition=Utils::partition(numbercells.begin(),numbercells.end(),batchsize);
+       for(unsigned batchCount=0;batchCount<numbersPartition.size();batchCount++){
+        auto batch=numbersPartition[batchCount];
+        std::vector<arma::uword> batchsubset;
+        for(const auto& item:batch){
+          batchsubset.push_back(item);
+        }
+        arma::field<arma::sp_mat> datamatFmini(viewnum,1);
+        arma::uvec batchsub(batchsubset);
+        //Take a subset of datamatF
+        for(int j=0; j<viewnum;j++){
+          arma::sp_mat minimatj=col_sp(datamatF[j],batchsub);
+          datamatFmini[j]=minimatj;
+        }
+        arma::mat Hmini=H.rows(batchsub);
+        int size=numbersPartition.size();
+        perviewNMFMUR(datamatFmini,WF,Hmini,AdjF,DF,lambdaWV,lambdaH,diffFunc,Hconstraint,random_W_updates,batchCount,size);
+        H.rows(batchsub)=Hmini;
+       }} else{
+        perviewNMFMUR(datamatF,WF,H,AdjF,DF,lambdaWV,lambdaH,diffFunc,Hconstraint,random_W_updates);
+     }
+     if((initsamp.n_elem<H.n_rows)){
+       double liki=losscalc(datamatFsub,WF,H.rows(initsamp),AdjF,DF,lambdaWV,lambdaH,diffFunc);
+       if(liki<minlik){
+         minlik=liki;
+         WFmin=WF;
+         Hmin=H;
+       }
+       LL.push_back(liki);
+     }
+     else{
+      double liki=losscalc(datamatF,WF,H,AdjF,DF,lambdaWV,lambdaH,diffFunc);
+       if(liki<minlik){
+         minlik=liki;
+         WFmin=WF;
+         Hmin=H;
+       }
+      LL.push_back(liki);
+     }
+     if((((LL.end()[-2]-LL.end()[-1]))<differr*LL.end()[-2])&(i>minrounds)){
+       if(LL.end()[-2]<LL.end()[-1]){
+         if(!suppress_warnings){
+         Rcout<<"\n Value for the loss has increased after round "<<i+1<<". \n If this is an online algorithm, this behavior is expected. \n Please note that the final update is: "<<(abs((LL.end()[-2]-LL.end()[-1]))/LL.end()[-2])*100<<"%. \n Returning W and H matrices corresponding to lowest achieved loss";
+         }
+         WF=WFmin;
+         H=Hmin;
+       }
        break;
      }
-     if(i==rounds-1){
-       Rcout<<"Algorithm not converged. Maximum number of rounds reached. Final update is: "<<(abs((LL.end()[-2]-LL.end()[-1]))/LL.end()[-2])*100<<"%.";
+     if((i==rounds-1)&!suppress_warnings){
+       Rcout<<"Algorithm not converged. Maximum number of rounds reached. \n Final update is: "<<(abs((LL.end()[-2]-LL.end()[-1]))/LL.end()[-2])*100<<"%.";
      }
    }
    for(int i=0; i<viewnum;i++){

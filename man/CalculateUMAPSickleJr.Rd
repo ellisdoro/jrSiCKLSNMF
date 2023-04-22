@@ -2,7 +2,7 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{CalculateUMAPSickleJr}
 \alias{CalculateUMAPSickleJr}
-\title{CalculateUMAPSickleJr}
+\title{Calculate the UMAP for a SickleJr object.}
 \usage{
 CalculateUMAPSickleJr(
   SickleJr,
@@ -16,11 +16,13 @@ CalculateUMAPSickleJr(
 \item{umap.settings}{Optional settings for UMAP. Set to default.}
 
 \item{view}{If this parameter is set, this will perform UMAP on W_view%*%t(H) rather than
-on H alone.}
+on H alone. Warning that this takes a very long time for large datasets and is
+not recommended for them.}
 }
 \value{
 a SickleJr with added UMAP calculations based on the H matrix alone or within a view
 }
 \description{
-Perform UMAP on the H matrix alone (default) or within a view
+Perform UMAP on the H matrix alone (default) or within a view by
+using UMAP on the \eqn{\textbf{W}^v}H corresponding to view \eqn{v}
 }

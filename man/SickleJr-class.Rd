@@ -4,18 +4,19 @@
 \name{SickleJr-class}
 \alias{SickleJr-class}
 \alias{SickleJr}
-\title{SickleJr}
+\title{A SickleJr object}
 \value{
-an object of type SicklJr
+an object of type SickleJr
 }
 \description{
-defines the SickleJr class
+Defines the SickleJr class for use with jrSiCKLSNMF
 }
 \section{Slots}{
 
 \describe{
 \item{\code{count.matrices}}{list. List of all of the QC'd count matrices.
-Note that these count matrices should not use}
+Note that these count matrices should not use all features and should
+only include features that appear in at a minimum 10 cells.}
 
 \item{\code{normalization.type}}{character. Holds the type of normalization}
 
@@ -26,17 +27,29 @@ Note that these count matrices should not use}
 \item{\code{rowRegularization}}{character. A string that indicates the type of row regularization to
 use. Types include "None" and "L2Norm"}
 
-\item{\code{Wlist}}{list. A list of the generated W matrices, one for each view}
-
-\item{\code{H}}{matrix. The shared H matrix}
-
 \item{\code{diffFunc}}{character. Holds the name of the function used to measure the "distance" between
 data matrix X and WH for each view. Can be "klp" for Kullback-Leibler based on the Poisson
 distribution or "frob" for the Frobenius norm.}
 
-\item{\code{lambdaWlist}}{list. List of lambda values used, one for H view}
+\item{\code{lambdaWlist}}{list. List of lambda values used in the W view}
 
 \item{\code{lambdaH}}{numeric. Value for the constraint on H}
+
+\item{\code{Wlist}}{list. A list of the generated W matrices, one for each view}
+
+\item{\code{H}}{matrix. The shared H matrix}
+
+\item{\code{WHinitials}}{If in PlotLossvsLatentFactors, you use all of the cells to calculate,
+you can store these in a WHinitials vector and use it when performing jrSiCKLSNMF to save
+time}
+
+\item{\code{lossCalcSubsample}}{holds the cell indices on which plotlossvslatentfactors was calculated}
+
+\item{\code{latent.factor.elbow.values}}{Values for the latent factor elbow plot}
+
+\item{\code{online}}{Indicator variable that states whether the algorithm is online}
+
+\item{\code{clusterdiagnostics}}{list. List of the cluster diagnostic results for the SickleJr object}
 
 \item{\code{clusters}}{list. List of different clusters performed on the SickleJr object}
 
