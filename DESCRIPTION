@@ -1,7 +1,7 @@
 Package: jrSiCKLSNMF
 Type: Package
 Title: Joint graph Regularized Single-Cell Kullback-Leibler Sparse Non-negative Matrix Factorization
-Version: 1.1
+Version: 1.2
 Date: 2023-22-04
 Author: Dorothy Ellis
 Maintainer: Dorothy Ellis <ddemoreellis@gmail.com>
