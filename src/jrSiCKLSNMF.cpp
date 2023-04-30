@@ -188,8 +188,8 @@ void perviewNMFMUR(const arma::field<arma::sp_mat>& datamatF, arma::field<arma::
       arma::mat WW=WF[i].t()*WF[i];
 
       //Take gradient with normalized parameters
-      IdenomH=datamatF[i].t()*WF[i];
-      InumerH=H*WW;
+      IdenomH=H*WW;
+      InumerH=datamatF[i].t()*WF[i];
       if(Hconstraint!="None"){
         regnumerH=regFunc(IdenomH,H,Hconstraint);
         regdenomH=regFunc(InumerH,H,Hconstraint);

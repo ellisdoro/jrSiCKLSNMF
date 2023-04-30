@@ -12,7 +12,7 @@ NULL
 #' use. Types include "None" and "L2Norm"
 #' @slot diffFunc character. Holds the name of the function used to measure the "distance" between
 #' data matrix X and WH for each view. Can be "klp" for Kullback-Leibler based on the Poisson
-#' distribution or "frob" for the Frobenius norm.
+#' distribution or "fr" for the Frobenius norm.
 #' @slot lambdaWlist list. List of lambda values used in the W view
 #' @slot lambdaH numeric. Value for the constraint on H
 #' @slot Wlist list. A list of the generated W matrices, one for each view
@@ -476,32 +476,61 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=200,differr=1e-5,d_vector=c(2:
 #'
 #' @param SickleJr A SickleJr object
 #' @param d The number of desired latent factors
+#' @param usebatchupdate Whether to update in series of batches or not. Use for large numbers of cells
+#' @param batchsize Desired size of batches for initialization of large H values
+#' @param parallel Whether you want to run this operation in parallel
+#' @param seed Desired seed.
+#' @param nCores Number of desired cores
 #'
 #' @return a SickleJr object with a filled in W and H matrices.
 #' @export
 #'
-SetWandHfromWHinitials<-function(SickleJr,d){
+SetWandHfromWHinitials<-function(SickleJr,d,usebatchupdate=TRUE,batchsize=1000,parallel=TRUE,seed=NULL,nCores=detectCores()-1){
+  if(is.numeric(seed)){
+    set.seed(seed)
+  }
+  if(!usebatchupdate&parallel){
+    warning("\n When not using batch updates, parallel computation is not feasible. \n")
+  }
   numcells<-dim(SickleJr@normalized.count.matrices[[1]])[2]
   numcellsinit<-dim(SickleJr@WHinitials[[1]][["H"]])[1]
   latent_factor_number=SickleJr@latent.factor.elbow.values$latent_factor_number
+  Hconcatmat<-matrix(data=0,nrow=numcells,ncol=d)
+  #SickleJr@H<-Hconcatmat
   if(!(d%in%latent_factor_number)){
     stop("\n Initial values for W and H and have not been calculated for the specified number of latent factors. Exiting...\n")
   }
   whichd<-which(unlist(lapply(SickleJr@WHinitials,function(x) x[["d"]]==d)))
-  listwh<-SickleJr@WHinitials[[whichd]]
+  listwh<-copy(SickleJr@WHinitials[[whichd]])
 
   if(numcells!=numcellsinit){
-    warning("\n Number of total cells differs from number of cells used in calculation for the initial plot. Using values previously
+    message("\n Number of total cells differs from number of cells used in calculation for the initial plot. Using values previously
             calculated and using nndsvd initialization for the rest. \n")
-    SickleJr@H<-matrix(0,nrow=numcells,ncol=d)
     #Set values to previously calculated ones
-    SickleJr@H[SickleJr@lossCalcSubsample,]=SickleJr@WHinitials[[whichd]][["H"]]
-    #Set to nndsvd values
-    NormalizedXmatricessub<-lapply(SickleJr@normalized.count.matrices,function(x) x[,-SickleJr@lossCalcSubsample])
+    Hconcatmat[SickleJr@lossCalcSubsample,]=listwh$H
+    #Subset for nndsvd
 
-    bigXmatrix<-do.call(rbind,NormalizedXmatricessub)
-    svdH<-.nndsvd(A=bigXmatrix,k=d,flag=1)
-    Hconcatmat<-t(svdH$H)
+    bigXmatrix<-do.call(rbind,SickleJr@normalized.count.matrices)
+    if(usebatchupdate){
+      allcells<-1:numcells
+      shuffleindices<-sample(allcells[-SickleJr@lossCalcSubsample],(numcells-numcellsinit),replace=FALSE)
+      batchlist<-split(shuffleindices,ceiling(seq_along(shuffleindices)/batchsize))
+      if(!parallel){cl=NULL
+        }else{
+          cl<<-makeCluster(nCores)
+          clusterExport(cl,varlist=c("bigXmatrix","Hconcatmat","batchlist","d"),envir = environment())
+          clusterEvalQ(cl,library("jrSiCKLSNMF"))
+        }
+      svdlist<-pblapply(batchlist, function(x) {svdH=jrSiCKLSNMF:::.nndsvd(A=bigXmatrix[,x],k=d,flag=1)
+        t(svdH$H)},cl=cl)
+      stopCluster(cl)
+      for(i in 1:length(svdlist)){
+        Hconcatmat[batchlist[[i]],]<-svdlist[[i]]
+      }
+    }else{
+      svdH<-.nndsvd(A=bigXmatrix[,-SickleJr@lossCalcSubsample],k=d,flag=1)
+      Hconcatmat[-SickleJr@lossCalcSubsample,]<-t(svdH$H)
+    }
     rowReg=SickleJr@rowRegularization
     if(rowReg=="L2Norm"){
       norms<-apply(Hconcatmat,2,function(x)sqrt(sum(x^2)))
@@ -514,7 +543,7 @@ SetWandHfromWHinitials<-function(SickleJr,d){
       meanHconcat<-mean(apply(Hconcatmat,2,function(x) sum(x)))
       Hconcatmat<-apply(Hconcatmat,2,function(x) x/sum(x))*meanHconcat
     }
-    SickleJr@H[-SickleJr@lossCalcSubsample,]=Hconcatmat
+    SickleJr@H=Hconcatmat
     SickleJr@Wlist=SickleJr@WHinitials[[whichd]][["Wlist"]]
   } else{
     SickleJr@Wlist<-SickleJr@WHinitials[[whichd]][["Wlist"]]
@@ -632,7 +661,8 @@ OnlineDiagnosticPlot<-function(SickleJr){
 #' @export
 determineClusters<-function(SickleJr,numclusts=2:20,clusteringmethod="kmeans",
                             diagnosticmethods=c("wss","silhouette","gap_stat"),
-                            clValidvalidation="internal",printDiagnosticplots=TRUE,printClValidDiagnostics=TRUE){
+                            clValidvalidation="internal",printDiagnosticplots=TRUE,printClValidDiagnostics=TRUE,subset=TRUE,subsetsize=1000,seed=15){
+
   ingraph<-FALSE
   inclValid<-FALSE
   if((clusteringmethod%in% c("kmeans","clara","fanny","dbscan","Mclust","HCPC","hkmeans"))&
@@ -651,16 +681,31 @@ determineClusters<-function(SickleJr,numclusts=2:20,clusteringmethod="kmeans",
     stop("\n Valid clustering method not selected. Please select a valid clustering method. Options include:\n 'kmeans','clara','fanny','dbscan','Mclust',HCPC','hkmeans','hierarchical','diana','som','model','pam',and 'agnes'.")
   }
   ggplotlist<-list()
+  rownames(SickleJr@H)<-colnames(SickleJr@count.matrices[[1]])
   clValidobj<-NULL
+  Hrun<-NULL
+  if(subset&subsetsize>dim(SickleJr@H)[1]){
+    warning("Size of subset is greater than the number of cells. Using full dataset")
+    subset=FALSE
+  }
+  if(subset){
+    if(is.numeric(seed)){
+      set.seed(seed)
+    }
+    subset<-sample(1:dim(SickleJr@H)[1],subsetsize,replace = FALSE)
+    Hrun<-SickleJr@H[subset,]
+  }else{
+    Hrun<-SickleJr@H
+  }
   if(ingraph){
-    ggplotlist<-lapply(diagnosticmethods,function(x) fviz_nbclust(SickleJr@H,match.fun(clusteringmethod),method=x,k.max=max(numclusts)))
+    ggplotlist<-lapply(diagnosticmethods,function(x) fviz_nbclust(Hrun,match.fun(clusteringmethod),method=x,k.max=max(numclusts)))
     if(printDiagnosticplots){
       lapply(ggplotlist,function(x) print(x))
     }
   }
   if(inclValid){
-    rownames(SickleJr@H)<-colnames(SickleJr@count.matrices[[1]])
-    clValidobj<-clValid(SickleJr@H,clMethods=clusteringmethod,validation=clValidvalidation,nClust=numclusts)
+
+    clValidobj<-clValid(Hrun,clMethods=clusteringmethod,validation=clValidvalidation,nClust=numclusts)
     if(printClValidDiagnostics){
       print(summary(clValidobj))
     }
