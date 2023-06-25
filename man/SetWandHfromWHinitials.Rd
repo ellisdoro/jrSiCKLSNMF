@@ -2,20 +2,24 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{SetWandHfromWHinitials}
 \alias{SetWandHfromWHinitials}
-\title{Set W matrices and H matrix from pre-calculated values}
+\title{Set \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix from pre-calculated values}
 \usage{
 SetWandHfromWHinitials(SickleJr, d)
 }
 \arguments{
-\item{SickleJr}{A SickleJr object}
+\item{SickleJr}{An object of class SickleJr}
 
 \item{d}{The number of desired latent factors}
 }
 \value{
-a SickleJr object with a filled in W and H matrices.
+An object of class SickleJr with the \code{Wlist} slot and the \code{H} slot filled from pre-calculated values.
 }
 \description{
 Use values calculated in the step to determine number of latent factors in the initial
-steps for the jrSiCKLSNMF algorithm. If only a subset was calculated, this uses
-nndsvd to calculate missing H values
+steps for the jrSiCKLSNMF algorithm. If only a subset was calculated, this produces an error.
+In this case, please use \code{\link{GenerateWmatricesandHmatrix}} to generate new
+\eqn{\mathbf{W}^v} matrices and a new \eqn{\mathbf{H}} matrix.
+}
+\examples{
+SimSickleJrSmall<-SetWandHfromWHinitials(SimSickleJrSmall,d=5)
 }

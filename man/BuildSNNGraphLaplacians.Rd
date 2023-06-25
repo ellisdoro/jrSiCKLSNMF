@@ -7,14 +7,19 @@
 BuildSNNGraphLaplacians(SickleJr, k = 20)
 }
 \arguments{
-\item{SickleJr}{A SickleJr object}
+\item{SickleJr}{An object of class SickleJr}
 
-\item{k}{Number of KNN neighbors to calculate. By default, is set to 20}
+\item{k}{Number of KNN neighbors to calculate SNN graph; defaults to 20}
 }
 \value{
-A list of graph Laplacians in sparse matrix format
+An object of class SickleJr with list of graph Laplacians in sparse
+matrix format added to its \code{graph.laplacian.list} slot
 }
 \description{
 Generate graph Laplacians for graph regularization of
-jrSiCKLSNMFNMF from the list of normalized count matrices
+jrSiCKLSNMF from the list of raw count matrices using an SNN graph. SNN is more robust to
+situations where the number of cells outnumbers the number of features.
+}
+\examples{
+SimSickleJrSmall<-BuildSNNGraphLaplacians(SimSickleJrSmall)
 }

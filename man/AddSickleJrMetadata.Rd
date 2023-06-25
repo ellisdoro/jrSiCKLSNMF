@@ -2,21 +2,26 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{AddSickleJrMetadata}
 \alias{AddSickleJrMetadata}
-\alias{AddSickleJrMetaData}
-\title{AddSickleJrMetadata}
+\title{Add metadata to an object of class SickleJr}
 \usage{
-AddSickleJrMetaData(SickleJr, metadata, metadataname)
+AddSickleJrMetadata(SickleJr, metadata, metadataname)
 }
 \arguments{
-\item{SickleJr}{a SickleJr object}
+\item{SickleJr}{An object of class SickleJr holding at least one count matrix of omics data}
 
-\item{metadata}{The metadata you wish to add to the object}
+\item{metadata}{Metadata to add to the SickleJr object; there are no restrictions on type}
 
-\item{metadataname}{The name that you wish to call the added metadata}
+\item{metadataname}{A string input that indicates the desired name for the added
+metadata.}
 }
 \value{
-SickleJr with added metadata
+An object of class SickleJr with added metadata
 }
 \description{
-Add metadata to a SickleJr object
+Add any type of metadata to an object of class SickleJr. Metadata
+are stored in list format under the name specified in \code{metadataname} of each node in slot \code{metadata}.
+}
+\examples{
+SimSickleJrSmall<-AddSickleJrMetadata(SimSickleJrSmall,
+SimData$cell_type,"cell_types_full_data")
 }

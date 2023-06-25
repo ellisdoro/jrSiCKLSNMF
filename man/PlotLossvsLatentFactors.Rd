@@ -2,17 +2,17 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{PlotLossvsLatentFactors}
 \alias{PlotLossvsLatentFactors}
-\title{Creating plots to help determine the number of latent factors to use for jrSiCKLSNMF}
+\title{Create plots to help determine the number of latent factors to use for jrSiCKLSNMF}
 \usage{
 PlotLossvsLatentFactors(
   SickleJr,
-  rounds = 200,
-  differr = 1e-05,
+  rounds = 100,
+  differr = 1e-04,
   d_vector = c(2:20),
   parallel = FALSE,
   nCores = detectCores() - 1,
   subsampsize = NULL,
-  online = FALSE,
+  minibatch = FALSE,
   random = FALSE,
   random_W_updates = FALSE,
   seed = NULL,
@@ -22,51 +22,52 @@ PlotLossvsLatentFactors(
 )
 }
 \arguments{
-\item{SickleJr}{A SickleJr object}
+\item{SickleJr}{An object of class SickleJr}
 
-\item{rounds}{Number of rounds to use. Defaults to 20. This process will take some time,
+\item{rounds}{Number of rounds to use: defaults to 100; this process is time consuming,
 so a high number of rounds is not recommended}
 
-\item{differr}{A tolerance of updates after which to stop updating. For these plots,
-this is set to 1e-4 by default}
+\item{differr}{Tolerance for the percentage update in the likelihood: for these plots,
+this defaults to \eqn{1e-4}}
 
-\item{d_vector}{Vector of D values to test over. Defaults from 2 to 20.}
+\item{d_vector}{Vector of \eqn{d} values to test: default is 2 to 20}
 
-\item{parallel}{Indicates whether or not you want to perform this using
-parallel computing}
+\item{parallel}{Boolean indicating whether to use parallel computation}
 
-\item{nCores}{Number of desired cores. If null, defaults to the number of cores
-minus 1 for user convenience.}
+\item{nCores}{Number of desired cores; defaults to the number of cores of the current machine minus 1 for convenience}
 
-\item{subsampsize}{Indicates whether you want to perform this on a random subsample rather
-than on the whole dataset. Will speed up the process but will have lower accuracy on desired
-number of d}
+\item{subsampsize}{Size of the random subsample (defaults to \code{NULL}, which means all cells will be used); using a random subsample decreases computation time but sacrifices accuracy}
 
-\item{online}{Indicates whether you want an online algorithm. Defaults to FALSE}
+\item{minibatch}{Boolean indicating whether to use the mini-batch algorithm: default is \code{FALSE}}
 
-\item{random}{Indicates whether to use random initialization to generate the W and H matrices
-Defaults to FALSE as this in general is less accurate.}
+\item{random}{Boolean indicating whether to use random initialization to generate the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix:
+defaults to \code{FALSE}}
 
-\item{random_W_updates}{Only used for online algorithms. If TRUE, only updates W using the second
-to last H subset on the online algorithm}
+\item{random_W_updates}{Boolean parameter for mini-batch algorithm; if \code{TRUE}, only updates \eqn{\mathbf{W}^v} once per epoch on the
+penultimate subset of \eqn{\mathbf{H}}; otherwise updates \eqn{\mathbf{W}^v} after every update of the subset of \eqn{\mathbf{H}}}
 
-\item{seed}{Set a random seed}
+\item{seed}{Number representing the random seed}
 
-\item{batchsize}{Desired batch size. Do not use if you are using a subsample.}
+\item{batchsize}{Desired batch size; do not use if using a subsample}
 
-\item{lossonsubset}{Indicates whether to calculate the loss on a subset rather than the full dataset.
-Speeds up computation for larger datasets.}
+\item{lossonsubset}{Boolean indicating whether to calculate the loss on a subset rather than the full dataset; speeds up computation for larger datasets}
 
-\item{losssubsetsize}{Number of cells to use for the loss subset. Defaults to full number of cells}
+\item{losssubsetsize}{Number of cells to use for the loss subset; default is total number of cells}
 }
 \value{
-A SickleJr with an added ggplot object in slot LatentFactorDeterminationPlot
+An object of class SickleJr with a list of initialized \eqn{\mathbf{W}^v} matrices and an \eqn{\mathbf{H}} matrix
+for each latent factor \eqn{d\in\{1,...,D\}} added to the \code{WHinitials} slot, a data frame holding relevant
+values for plotting the elbow plot added to the \code{latent.factor.elbow.values} slot, diagnostic plots of the loss vs. the number of latent factors added to the \code{plots}
+slot, and the cell indices used to calculate the loss on the subsample added to the \code{lossCalcSubSample} slot
 }
 \description{
-This generates plots of the lowest achieved loss after a
-user-specified number of iterations (default 200)
+Generate plots of the lowest achieved loss after a
+pre-specified number of iterations (default 100)
 of the jrSiCKLSNMF algorithm for each latent factor (defaults to 2:20). This operates similarly to a
 scree plot, so please select a number of latent factors that corresponds to the
-elbow of the plot. This function will not uniformly decrease, so an increase in loss
-may be expected. Select the minimum loss or a point that appears to be an elbow.
+elbow of the plot. This method is not appropriate for larger sets of data (more than 1000 cells)
+}
+\examples{
+SimSickleJrSmall@latent.factor.elbow.values<-data.frame(NULL,NULL)
+SimSickleJrSmall<-PlotLossvsLatentFactors(SimSickleJrSmall,d_vector=c(2:6),rounds=10)
 }

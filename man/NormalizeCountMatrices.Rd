@@ -2,29 +2,37 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{NormalizeCountMatrices}
 \alias{NormalizeCountMatrices}
-\title{Normalize the count matrices and set whether to use the KL divergence
-based on the Poisson distribution or the Frobenius norm}
+\title{Normalize the count matrices and set whether to use the Poisson KL divergence
+or the Frobenius norm}
 \usage{
 NormalizeCountMatrices(SickleJr, diffFunc = "klp", scaleFactor = NULL)
 }
 \arguments{
-\item{SickleJr}{An object of type SickleJr with a count matrix. Users can choose to normalize using median
-library size normalization or log(x+1) normalization}
+\item{SickleJr}{An object of class SickleJr}
 
-\item{diffFunc}{A string. Set to "klp" to use the KL divergence based on the Poisson distribution
-or to "fr" to use the Frobenius norm. Defaults to KL divergence. This also determines
-the type of normalization to use.}
+\item{diffFunc}{A string set to "klp" when using the Poisson KL divergence
+or to "fr" when using the Frobenius norm: default is KL divergence; this also determines
+the type of normalization}
 
-\item{scaleFactor}{A list of numeric values to use as scale factors for the log(x+1)
-normalization when using the Frobenius diffFunction}
+\item{scaleFactor}{A single numeric value (if using the same scale factor for each modality)
+or a list of numeric values to use (if using different scale factors in different modalities)
+as scale factors for the log\eqn{(x+1)} normalization when \code{diffFunc="fr"}}
 }
 \value{
-A list of sparse, normalized matrices
+An object of class SickleJr with a list of sparse, normalized data matrices added to its \code{normalized.count.matrices} slot
 }
 \description{
-Perform normalization for count data. If you are planning to use the Frobenius norm,
-set frob=TRUE to log(x+1) normalize your count data. This step can be skipped for percentage data and
-spectra data. You may also skip this if you would like to perform a different form
-of normalization; however, please ensure that if using the Frobenius norm that all of the values are
-divided by the sum of all of the values.
+Normalize the count data within each modality. The default
+normalization, which should be used when using the KL divergence, is median
+library size normalization. To perform median library size normalization,
+each count within a cell is divided by its library size (i.e. the counts within a column are divided by the
+column sum). Then, all values are multiplied by the median library size
+(i.e. the median column sum). To use the Frobenius norm, set \code{frob=TRUE} to log\eqn{(x+1)}
+normalize your count data and use a desired \code{scaleFactor}.
+You may also use a different form of normalization and store these results
+in the \code{normalized.count.matrices} slot.
+}
+\examples{
+SimSickleJrSmall<-NormalizeCountMatrices(SimSickleJrSmall)
+SimSickleJrSmall<-NormalizeCountMatrices(SimSickleJrSmall, diffFunc="fr",scaleFactor=1e6)
 }

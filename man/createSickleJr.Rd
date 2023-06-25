@@ -2,23 +2,23 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{CreateSickleJr}
 \alias{CreateSickleJr}
-\title{Create an object of type SickleJr}
+\title{Create an object of class SickleJr}
 \usage{
 CreateSickleJr(count.matrices, names = NULL)
 }
 \arguments{
-\item{count.matrices}{A list of count matrices; each view is one entry in the
-list. These count matrices should already be QC'd and the features filtered}
+\item{count.matrices}{A list of quality-controlled count matrices with pre-filtered features where each modality corresponds to each matrix in the
+list}
 
-\item{names}{Optional parameter with names for the count matrices}
+\item{names}{Optional parameter with names for the count matrices in vector format}
 }
 \value{
-A SickleJr object with sparse count matrices
+An object of class SickleJr with sparse count matrices added to the \code{count.matrices} slot
 }
 \description{
-Creates an object of type SickleJr that includes lists of sparse
-count matrices and allows users to specify the names of those count matrices
+Using a list of sparse count matrices, create an object of class SickleJr
+and specify the names of these count matrices.
 }
 \examples{
-SickleJrSim<-CreateSickleJr(SimData$Xmatrices)
+ExampleSickleJr<-CreateSickleJr(SimData$Xmatrices)
 }

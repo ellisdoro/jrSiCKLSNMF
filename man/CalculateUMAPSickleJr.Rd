@@ -2,27 +2,39 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{CalculateUMAPSickleJr}
 \alias{CalculateUMAPSickleJr}
-\title{Calculate the UMAP for a SickleJr object.}
+\title{Calculate the UMAP for an object of class SickleJr}
 \usage{
 CalculateUMAPSickleJr(
   SickleJr,
   umap.settings = umap::umap.defaults,
-  view = NULL
+  modality = NULL
 )
 }
 \arguments{
 \item{SickleJr}{An object of class SickleJr}
 
-\item{umap.settings}{Optional settings for UMAP. Set to default.}
+\item{umap.settings}{Optional settings for UMAP; defaults to \code{\link[umap]{umap.defaults}}}
 
-\item{view}{If this parameter is set, this will perform UMAP on W_view%*%t(H) rather than
-on H alone. Warning that this takes a very long time for large datasets and is
-not recommended for them.}
+\item{modality}{A number corresponding to the desired modality; if set, will perform UMAP on
+\eqn{\mathbf{W}^{\mathtt{modality}}}%*%t(\eqn{\mathbf{H}}) rather than
+on \eqn{\mathbf{H}} alone; not recommended for datasets of more than 1000 cells}
 }
 \value{
-a SickleJr with added UMAP calculations based on the H matrix alone or within a view
+An object of class SickleJr with UMAP output based on the \eqn{\mathbf{H}} matrix alone or within a modality added to its \code{umap} slot
 }
 \description{
-Perform UMAP on the H matrix alone (default) or within a view by
-using UMAP on the \eqn{\textbf{W}^v}H corresponding to view \eqn{v}
+Perform UMAP on the \eqn{\mathbf{H}} matrix alone (default) or within a modality by
+using UMAP on the \eqn{W^vH} corresponding to modality \eqn{v}.
+}
+\examples{
+#Since this example has only 10 observations,
+#we need to modify the number of neighbors from the default of 15
+umap.settings=umap::umap.defaults
+umap.settings$n_neighbors=2
+SimSickleJrSmall<-CalculateUMAPSickleJr(SimSickleJrSmall,
+umap.settings=umap.settings)
+SimSickleJrSmall<-CalculateUMAPSickleJr(SimSickleJrSmall,
+umap.settings=umap.settings,modality=1)
+SimSickleJrSmall<-CalculateUMAPSickleJr(SimSickleJrSmall,
+umap.settings=umap.settings,modality=2)
 }

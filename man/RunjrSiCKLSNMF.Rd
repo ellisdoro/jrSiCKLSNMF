@@ -2,7 +2,7 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{RunjrSiCKLSNMF}
 \alias{RunjrSiCKLSNMF}
-\title{RunjrSiCKLSNMF}
+\title{Run jrSiCKLSNMF on an object of class SickleJr}
 \usage{
 RunjrSiCKLSNMF(
   SickleJr,
@@ -11,7 +11,7 @@ RunjrSiCKLSNMF(
   display_progress = TRUE,
   lossonsubset = FALSE,
   losssubsetsize = dim(SickleJr@H)[1],
-  online = FALSE,
+  minibatch = FALSE,
   batchsize = 1000,
   random_W_updates = FALSE,
   seed = NULL,
@@ -21,40 +21,43 @@ RunjrSiCKLSNMF(
 )
 }
 \arguments{
-\item{SickleJr}{a SickleJr object}
+\item{SickleJr}{An object of class SickleJr}
 
-\item{rounds}{Number of rounds. Defaults to 300.}
+\item{rounds}{Number of rounds: defaults to 2000}
 
-\item{differr}{Tolerance for updating. Defaults to 1e-6.}
+\item{differr}{Tolerance for percentage change in loss between updates: defaults to 1e-6}
 
-\item{display_progress}{whether to display the progress bar for jrSiCKLSNMF}
+\item{display_progress}{Boolean indicating whether to display the progress bar for jrSiCKLSNMF}
 
-\item{lossonsubset}{Indicates whether you will be using a subset to calculate the loss function
+\item{lossonsubset}{Boolean indicating whether to use a subset to calculate the loss function
 rather than the whole dataset}
 
-\item{losssubsetsize}{Size of the subset of data to calculate the loss on}
+\item{losssubsetsize}{Size of the subset of data on which to calculate the loss}
 
-\item{online}{Indicates whether the algorithm will be online or not}
+\item{minibatch}{Boolean indicating whether to use mini-batch updates}
 
-\item{batchsize}{indicates size of batch for large matrices.}
+\item{batchsize}{Size of batch for mini-batch updates}
 
-\item{random_W_updates}{indicates whether or not to use random_W_updates updates (i.e. only update
-W once per online iteration)}
+\item{random_W_updates}{Boolean indicating whether or not to use random_W_updates updates
+(i.e. only update \eqn{\mathbf{W}^v} once per mini-batch epoch)}
 
-\item{seed}{Number to specify seed desired.}
+\item{seed}{Number specifying desired random seed}
 
-\item{minrounds}{A minimum number of rounds to use. Most helpful for the online algorithm}
+\item{minrounds}{Minimum number of rounds: most helpful for the mini-batch algorithm}
 
-\item{suppress_warnings}{Indicates whether or not you want warnings suppressed}
+\item{suppress_warnings}{Boolean indicating whether to suppress warnings}
 
-\item{subsample}{Used primarily when finding an appropriate number of latent factors. Defaults
-to all cells, but you can run jrSiCKLSNMF on just a subset of cells.}
+\item{subsample}{A numeric used primarily when finding an appropriate number of
+latent factors: defaults to total number of cells}
 }
 \value{
-a SickleJr object with updated W matrices, updated H matrices, and a vector of values for
-the loss function
+An object of class SickleJr with updated \eqn{\mathbf{W}^v} matrices, updated \eqn{\mathbf{H}} matrix, and a vector of values for
+the loss function added to the \code{Wlist}, \code{H}, and \code{loss} slots, respectively
 }
 \description{
-Wrapper function to run jrSiCKLSNMF on a SickleJr object. Performs jrSiCKLSNMF on
+Wrapper function to run jrSiCKLSNMF on an object of class SickleJr. Performs jrSiCKLSNMF on
 the given SickleJr
+}
+\examples{
+SimSickleJrSmall<-RunjrSiCKLSNMF(SimSickleJrSmall,rounds=5)
 }

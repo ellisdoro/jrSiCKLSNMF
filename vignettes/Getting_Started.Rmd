@@ -21,7 +21,7 @@ Here, we will provide a walkthrough of jrSiCKLSNMF on simulated data. First, ins
 library(jrSiCKLSNMF)
 ```
 
-For this walkthrough, we will be working with simulated data object \textsc{SimData}. These data were generated from GSE130399 using the packages SparSim and simATAC. The details for the simulations can be found in our paper. \textsc{SimData} has already been QC'd; however, when working with real data, you should QC your data and select features that appear in at least 10 cells for both views. After loading \textsc{jrSiCKLSNMF} into R, you should have access to \textsc{SimData}.
+For this walkthrough, we will be working with simulated data object SimData. These data were generated from GSE130399 using the packages SparSim and simATAC. The details for the simulations can be found in our paper. SimData has already gone through quality control (QC); however, when working with real data, you should QC your data and select features that appear in at least 10 cells for both modalities. After loading jrSiCKLSNMF into R, you should have access to SimData.
 
 Now, we create a SickleJr object. This object will hold all of the results and intermediary steps for jrSiCKLSNMF. We will also create a vector containing the cell types for the simulated data for use in the next section.
 
@@ -38,11 +38,11 @@ rm(DataMatrices,SimData)
 Next, we will add metadata in the form of the true cell identity to the SickleJr object.
 
 ```{r addmetadata}
-SimSickleJr<-AddSickleJrMetaData(SimSickleJr,cell_type,"true_cell_type")
+SimSickleJr<-AddSickleJrMetadata(SimSickleJr,cell_type,"true_cell_type")
 rm(cell_type)
 ```
 
-You can add any metadata to the SickleJr object. Make sure to set the variable \textsc{metadata} to the variable containing the metadata you wish to add and the metadataname to a string containing what you wish the metadata to be called. Here, we call the metadata "true_cell_type." 
+You can add any metadata to the SickleJr object. Make sure to set the variable metadata to the variable containing the metadata you wish to add and the metadataname to a string containing what you wish the metadata to be called. Here, we call the metadata "true_cell_type." 
 # Generation of Graph Laplacians for Graph Regularization
 
 Next, we build our KNN graphs and extract the graph Laplacian to use for graph regularization. Note that for large matrices, this can take some time. Please set a seed if you want to have the exact same graph Laplacians every time.
@@ -69,12 +69,12 @@ SimSickleJr<-NormalizeCountMatrices(SimSickleJr)
 Now we can make plots to determine an ideal number of latent factors. Here, 5 or 6 appears to be an ideal number of
 latent factors. Note that this does change depending on the initialization of the graph matrices and the seed for the number of initial samples; however, the ideal number appears to be between 4 and 7. To more accurately identify an ideal number of latent factors, perform more rounds. This is the opposite behavior of the  L2 Norm regularized version.
 
-Also note that you should use more cores than 2 typically, and the default for this is 1 core fewer than the number of cores on your computer. R vignettes cannot be built using more than 2 cores.
+Also note that you should use run this in parallel and over more d values. Default is 2 to 20.
 
 ```{r determineD}
-SimSickleJr<-PlotLossvsLatentFactors(SimSickleJr,d_vector=2:20,parallel = TRUE,rounds=100,subsampsize = 100,seed=15,nCores = 2)
+SimSickleJr<-PlotLossvsLatentFactors(SimSickleJr,d_vector=4:6,parallel = FALSE,rounds=200,seed=15)
 ```
-If you have an idea of the number of latent factors you would like to use, you may generate the H and W matrices as below:
+From this plot, around 5 latent factors appears to be a good value. If you already have an idea of the number of latent factors you would like to use, you may generate the H and W matrices as below:
 
 ```{r initializeWH}
 SimSickleJr<-GenerateWmatricesandHmatrix(SimSickleJr,d=10)
@@ -93,41 +93,41 @@ Finally, we can run jrSicKLSNMF. By default, we constrain the rows of $\textbf{H
 
 ```{r runningjrsickls}
 start.time<-Sys.time()
-SimSickleJr<-RunjrSiCKLSNMF(SimSickleJr,rounds=1000,differr=1e-6,online=FALSE)
+SimSickleJr<-RunjrSiCKLSNMF(SimSickleJr,rounds=1000,differr=1e-6,minibatch=FALSE)
 stop.time<-Sys.time()
 (time<-stop.time-start.time)
 ```
 # Post-hoc Analyses
 
-After this, we can perform cell clustering. In version 1.0, users can use k-means or spectral clustering. Here, we demonstrate k-means. We can first determine an optimal number of clusters using the fviz_nbclust function from the library factoextra and clValid from package clValid. From the plots and diagnostics, we can see that 3 appear to be the optimal number of clusters.
+After this, we can perform cell clustering. In version 1.0, users can use k-means or spectral clustering. Here, we demonstrate k-means. We can first determine an optimal number of clusters using the fviz_nbclust function from the library factoextra and clValid from package clValid. From the plots and diagnostics, we can see that 3 appears to be the optimal number of clusters.
 
 ```{r clustering}
-SimSickleJr<-determineClusters(SimSickleJr)
+SimSickleJr<-DetermineClusters(SimSickleJr,printclValid=FALSE)
 SimSickleJr<-ClusterSickleJr(SimSickleJr,numclusts=3)
 ```
 
-Finally, we can calculate and then plot the UMAP of our SickleJr. Note that if you would like to plot the UMAP of the compressed $\mathbf{W}^v\mathbf{H}$ matrix, please enter the number corresponding to the view you wish to see. For the plots, you can either color based off of identified cluster or based off of metadata.
+Finally, we can calculate and then plot the UMAP of our SickleJr. Note that if you would like to plot the UMAP of the compressed $\mathbf{W}^v\mathbf{H}$ matrix, please enter the number corresponding to the modality you wish to see. For the plots, you can either color based off of identified cluster or based off of metadata.
 
 ```{r UMAPplots}
 SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr)
 #Plotting based off of cluster
-PlotSickleJrUMAP(SimSickleJr,title="K-means clusters")
+SimSickleJr<-PlotSickleJrUMAP(SimSickleJr,title="K-means clusters")
 #Plotting based off of true cell type metadata
-PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types",legendname="True Cell Types")
+SimSickleJr<-PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",title="True Cell Types",legendname="True Cell Types")
 ```
 
-We can also visualize data in the RNA view and the ATAC view. 
+We can also visualize data in the RNA modality and the ATAC modality. 
 
 ```{r UMAPplotsWH}
-SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,view=1)
-PlotSickleJrUMAP(SimSickleJr,title="K-means clusters: RNA view",
-                 umap.view="W1H")
-PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",
-                 title="True Cell Type: RNA view",legendname="True Cell Types",
-                 umap.view="W1H")
-SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,view=2)
-PlotSickleJrUMAP(SimSickleJr,title="K-means clusters: ATAC view",umap.view="W2H")
-PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",
-                 title="True Cell Type:ATAC view",legendname="True Cell Types",
-                 umap.view="W2H")
+SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,modality=1)
+SimSickleJr<-PlotSickleJrUMAP(SimSickleJr,title="K-means clusters: RNA modality",
+                 umap.modality="W1H")
+SimSickleJr<-PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",
+                 title="True Cell Type: RNA modality",legendname="True Cell Types",
+                 umap.modality="W1H")
+SimSickleJr<-CalculateUMAPSickleJr(SimSickleJr,modality=2)
+SimSickleJr<-PlotSickleJrUMAP(SimSickleJr,title="K-means clusters: ATAC modality",umap.modality="W2H")
+SimSickleJr<-PlotSickleJrUMAP(SimSickleJr,colorbymetadata="true_cell_type",
+                 title="True Cell Type:ATAC modality",legendname="True Cell Types",
+                 umap.modality="W2H")
 ```

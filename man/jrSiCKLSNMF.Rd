@@ -2,7 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{jrSiCKLSNMF}
 \alias{jrSiCKLSNMF}
-\title{jrSiCKLSNMF}
+\title{Run jrSiCKLSNMF outside of a SickleJr object}
 \usage{
 jrSiCKLSNMF(
   datamatL,
@@ -17,67 +17,66 @@ jrSiCKLSNMF(
   diffFunc = "klp",
   Hconstraint = "None",
   differr = 1e-06,
-  rounds = 1000,
+  rounds = 1000L,
   display_progress = TRUE,
-  online = TRUE,
+  minibatch = TRUE,
   batchsize = 100L,
   random_W_updates = TRUE,
   minrounds = 100L
 )
 }
 \arguments{
-\item{datamatL}{An R list where each entry contains a sparse X matrix corresponding to a single cell data view
-Each X is m^v features by n cells. Features can differ across matrices; however, n must be the same for
-each view. All data are measured on the same set of cells}
+\item{datamatL}{An R list where each entry contains a normalized, sparse \eqn{\mathbf{X}^v} matrix corresponding to single-cell modality \eqn{v}}
 
-\item{WL}{An R list containing initialized values for the W within each view. These are passed by reference}
+\item{WL}{An R list containing initialized values of the \eqn{\mathbf{W}^v} within each modality \eqn{v}}
 
-\item{H}{A matrix containing initialized values for the shared H}
+\item{H}{A matrix containing initialized values for the shared \eqn{\mathbf{H}}}
 
 \item{AdjL}{An R list containing all of the adjacency matrices for the
-feature-feature similarity graphs in sparse format. Note that D-Adj is the
+feature-feature similarity graphs in sparse format; note that \eqn{\mathtt{D-Adj}} is the
 graph Laplacian}
 
 \item{DL}{An R list containing all of the degree matrices of the
-feature-feature similarity graphs. Note that D-Adj is the graph Laplacian}
+feature-feature similarity graphs; note that \eqn{\mathtt{D-Adj}} is the graph Laplacian}
 
-\item{lambdaWL}{A list of each lambdaW for each view}
+\item{lambdaWL}{A list of the \eqn{\lambda_{\mathbf{W}^v}} corresponding to modality \eqn{v}}
 
-\item{lambdaH}{A double containing the desired value for H}
+\item{lambdaH}{A double containing the desired value for \eqn{\lambda_{\mathbf{H}}}}
 
-\item{initsamp}{A vector of randomly selected rows of H on which to run the objective function}
+\item{initsamp}{A vector of randomly selected rows of \eqn{\mathtt{H}} on which to run the objective function}
 
-\item{suppress_warnings}{Indicates whether warnings should be suppressed}
+\item{suppress_warnings}{A Boolean that indicates whether warnings should be suppressed}
 
-\item{diffFunc}{A string indicating what type of divergence to use. It is Poisson Kulback Leibler by default}
+\item{diffFunc}{A string indicating what type of divergence to use; set to the Poisson Kullback-Leibler divergence
+(\eqn{\mathtt{``klp"}}) by default, but the Frobenius norm (\eqn{\mathtt{``fr"}}) is also available}
 
-\item{Hconstraint}{A string that indicates whether you want to force constraints on the rows of H. Enter "None" for
-no constraints, enter "L1Norm" to ensure all rows of H sum to 1, and "L2Norm" to ensure that the the
-L2 norm of each row of H equals 1. Please note that jrSiCKLSNMF stores H as the transpose of H, so the code
-will perform regularization on the columns of the transpose of H.}
+\item{Hconstraint}{A string that indicates whether you want to set an L2 norm constraint on the rows of \eqn{\mathbf{H}}. Enter `None` for
+no constraints or `L2Norm` to set the L2 norm of each row of \eqn{\mathbf{H}} to 1}
 
 \item{differr}{A double containing the tolerance}
 
 \item{rounds}{A double containing the number of rounds}
 
-\item{display_progress}{A boolean to indicate whether the user wants to display the progress}
+\item{display_progress}{A Boolean indicating whether to display the progress bar}
 
-\item{online}{A boolean to indicate whether the user would like to use the online version of the algorithm.
-The online version}
+\item{minibatch}{A Boolean indicating whether to use the mini-batch version of the algorithm}
 
-\item{batchsize}{Number of batches for online updates}
+\item{batchsize}{Number of batches for mini-batch updates}
 
-\item{random_W_updates}{Indicates whether or not to use a random_W_updates algorithm for updating
-the W lists. If true, will only update W every 5 iterations.}
+\item{random_W_updates}{A Boolean indicating whether to update \eqn{\mathbf{W}^v} once per epoch (TRUE) or after every update of
+the subset of \eqn{\mathbf{H}} (FALSE) for the mini-batch algorithm.}
 
-\item{minrounds}{A minimum number of rounds for the algorithm to run. Most useful for the online algorithm}
+\item{minrounds}{A minimum number of rounds for the algorithm to run: most useful for the mini-batch algorithm}
 }
 \value{
 An R list containing values for the objective function.
 }
 \description{
-Perform joint non-negative matrix factorization (NMF) across multiple views of single cell data.
-Users can choose to use the Poisson Kullback-Leibler divergence or the Frobenius norm.
-Users can also set graph regularization constraints on W and sparsity constraints on H.
-This function updates WL and H.
+Perform joint non-negative matrix factorization (NMF) across multiple modalities of single-cell data.
+To measure the discrepancy between two distributions, one can use the Poisson Kullback-Leibler divergence (\eqn{\mathtt{diffFunc}=}\eqn{\mathtt{"klp"}})  or the Frobenius norm (\eqn{\mathtt{diffFunc}=}\eqn{\mathtt{"fr"}}).
+It is also possible to set graph regularization constraints on \eqn{\mathbf{W}^v} and either a sparsity constraint on \eqn{\mathbf{H}} or an
+L2 norm constraint on the rows of \eqn{\mathbf{H}}.
+This function passes by reference and updates the variables \eqn{\mathtt{WL}} and \eqn{\mathtt{H}} and does not require data to be in an
+object of type SickleJr. \eqn{\mathtt{RunjrSiCKLSNMF}} calls this function. If your data are in an object of class SickleJr,
+please use the \eqn{\mathtt{RunjrSiCKLSNMF}} function instead.
 }

@@ -4,59 +4,64 @@
 \name{SickleJr-class}
 \alias{SickleJr-class}
 \alias{SickleJr}
-\title{A SickleJr object}
+\title{The SickleJr class}
 \value{
-an object of type SickleJr
+An object of class SickleJr
 }
 \description{
-Defines the SickleJr class for use with jrSiCKLSNMF
+Defines the SickleJr class for use with jrSiCKLSNMF. This object
+contains all of the information required for analysis using jrSiCKLSNMF. This includes
+count matrices, normalized matrices, graph Laplacians, hyperparameters, diagnostic plots,
+and plots of cell clusters.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{count.matrices}}{list. List of all of the QC'd count matrices.
+\item{\code{count.matrices}}{A list containing all of the quality controlled count matrices.
 Note that these count matrices should not use all features and should
 only include features that appear in at a minimum 10 cells.}
 
-\item{\code{normalization.type}}{character. Holds the type of normalization}
+\item{\code{normalized.count.matrices}}{A list that holds the normalized count matrices}
 
-\item{\code{normalized.count.matrices}}{list. Holds the normalized count matrices}
+\item{\code{graph.laplacian.list}}{A list of the graph Laplacians to be used for graph regularization}
 
-\item{\code{graph.laplacian.list}}{list. A list of the graph laplacians used for graph regularizations}
-
-\item{\code{rowRegularization}}{character. A string that indicates the type of row regularization to
+\item{\code{rowRegularization}}{A string that indicates the type of row regularization to
 use. Types include "None" and "L2Norm"}
 
-\item{\code{diffFunc}}{character. Holds the name of the function used to measure the "distance" between
-data matrix X and WH for each view. Can be "klp" for Kullback-Leibler based on the Poisson
-distribution or "frob" for the Frobenius norm.}
+\item{\code{diffFunc}}{A string that holds the name of the function used to measure the "distance" between
+data matrix X and WH for each modality; can be \code{"klp"} for the Poisson Kullback-Leibler divergence
+or \code{"fr"} for the Frobenius norm}
 
-\item{\code{lambdaWlist}}{list. List of lambda values used in the W view}
+\item{\code{lambdaWlist}}{A list of lambda values to use as the hyperparameters for the
+corresponding \eqn{\mathbf{W}^v} in the \eqn{v^{\text{th}}} modality}
 
-\item{\code{lambdaH}}{numeric. Value for the constraint on H}
+\item{\code{lambdaH}}{A numeric value corresponding to the hyperparameter of the sparsity constraint on \eqn{\mathbf{H}}}
 
-\item{\code{Wlist}}{list. A list of the generated W matrices, one for each view}
+\item{\code{Wlist}}{A list of the generated \eqn{\mathbf{W}^v} matrices, one for each modality}
 
-\item{\code{H}}{matrix. The shared H matrix}
+\item{\code{H}}{The shared \eqn{\mathbf{H}} matrix}
 
-\item{\code{WHinitials}}{If in PlotLossvsLatentFactors, you use all of the cells to calculate,
-you can store these in a WHinitials vector and use it when performing jrSiCKLSNMF to save
-time}
+\item{\code{WHinitials}}{A list that if, when using \code{\link{PlotLossvsLatentFactors}}, all of the cells are used to calculate
+the initial values, stores these initial generated matrices; can be used
+as initializations when running \code{\link{RunjrSiCKLSNMF}} to save time}
 
-\item{\code{lossCalcSubsample}}{holds the cell indices on which plotlossvslatentfactors was calculated}
+\item{\code{lossCalcSubsample}}{A vector that holds the cell indices on which \code{\link{PlotLossvsLatentFactors}} was calculated}
 
-\item{\code{latent.factor.elbow.values}}{Values for the latent factor elbow plot}
+\item{\code{latent.factor.elbow.values}}{A data frame that holds the relevant information to plot the latent factor elbow plot}
 
-\item{\code{online}}{Indicator variable that states whether the algorithm is online}
+\item{\code{minibatch}}{Indicator variable that states whether the algorithm should use mini-batch updates.}
 
-\item{\code{clusterdiagnostics}}{list. List of the cluster diagnostic results for the SickleJr object}
+\item{\code{clusterdiagnostics}}{List of the cluster diagnostic results for the SickleJr object. Includes diagnostic plots from \code{\link[factoextra]{fviz_nbclust}} and
+and diagnostics from \code{\link[clValid]{clValid}}}
 
-\item{\code{clusters}}{list. List of different clusters performed on the SickleJr object}
+\item{\code{clusters}}{List of results of different clustering methods performed on the SickleJr object}
 
-\item{\code{metadata}}{list. List of metadata}
+\item{\code{metadata}}{List of metadata}
 
-\item{\code{loss}}{vector. Vector of the value for the loss function}
+\item{\code{loss}}{Vector of the value for the loss function}
 
-\item{\code{umap}}{list. List of different UMAP based dimension reductions}
+\item{\code{umap}}{List of different UMAP-based dimension reductions using \code{\link[umap]{umap}}}
+
+\item{\code{plots}}{Holds various \code{\link[ggplot2]{ggplot}} results for easy access of diagnostics and cluster visualizations}
 }}
 

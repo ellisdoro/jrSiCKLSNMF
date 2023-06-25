@@ -1,40 +1,44 @@
 NULL
 
-#' @title A SickleJr object
-#' @description Defines the SickleJr class for use with jrSiCKLSNMF
-#' @slot count.matrices list. List of all of the QC'd count matrices.
+#' @title The SickleJr class
+#' @description Defines the SickleJr class for use with jrSiCKLSNMF. This object
+#' contains all of the information required for analysis using jrSiCKLSNMF. This includes
+#' count matrices, normalized matrices, graph Laplacians, hyperparameters, diagnostic plots,
+#' and plots of cell clusters.
+#' @slot count.matrices A list containing all of the quality controlled count matrices.
 #' Note that these count matrices should not use all features and should
 #' only include features that appear in at a minimum 10 cells.
-#' @slot normalization.type character. Holds the type of normalization
-#' @slot normalized.count.matrices list. Holds the normalized count matrices
-#' @slot graph.laplacian.list list. A list of the graph laplacians used for graph regularizations
-#' @slot rowRegularization character. A string that indicates the type of row regularization to
+#' @slot normalized.count.matrices A list that holds the normalized count matrices
+#' @slot graph.laplacian.list A list of the graph Laplacians to be used for graph regularization
+#' @slot rowRegularization A string that indicates the type of row regularization to
 #' use. Types include "None" and "L2Norm"
-#' @slot diffFunc character. Holds the name of the function used to measure the "distance" between
-#' data matrix X and WH for each view. Can be "klp" for Kullback-Leibler based on the Poisson
-#' distribution or "fr" for the Frobenius norm.
-#' @slot lambdaWlist list. List of lambda values used in the W view
-#' @slot lambdaH numeric. Value for the constraint on H
-#' @slot Wlist list. A list of the generated W matrices, one for each view
-#' @slot H matrix. The shared H matrix
-#' @slot WHinitials If in PlotLossvsLatentFactors, you use all of the cells to calculate,
-#' you can store these in a WHinitials vector and use it when performing jrSiCKLSNMF to save
-#' time
-#' @slot lossCalcSubsample holds the cell indices on which plotlossvslatentfactors was calculated
-#' @slot latent.factor.elbow.values Values for the latent factor elbow plot
-#' @slot online Indicator variable that states whether the algorithm is online
-#' @slot clusterdiagnostics list. List of the cluster diagnostic results for the SickleJr object
-#' @slot clusters list. List of different clusters performed on the SickleJr object
-#' @slot metadata list. List of metadata
-#' @slot loss vector. Vector of the value for the loss function
-#' @slot umap list. List of different UMAP based dimension reductions
-#' @return an object of type SickleJr
+#' @slot diffFunc A string that holds the name of the function used to measure the "distance" between
+#' data matrix X and WH for each modality; can be \code{"klp"} for the Poisson Kullback-Leibler divergence
+#' or \code{"fr"} for the Frobenius norm
+#' @slot lambdaWlist A list of lambda values to use as the hyperparameters for the
+#' corresponding \eqn{\mathbf{W}^v} in the \eqn{v^{\text{th}}} modality
+#' @slot lambdaH A numeric value corresponding to the hyperparameter of the sparsity constraint on \eqn{\mathbf{H}}
+#' @slot Wlist A list of the generated \eqn{\mathbf{W}^v} matrices, one for each modality
+#' @slot H The shared \eqn{\mathbf{H}} matrix
+#' @slot WHinitials A list that if, when using \code{\link{PlotLossvsLatentFactors}}, all of the cells are used to calculate
+#' the initial values, stores these initial generated matrices; can be used
+#' as initializations when running \code{\link{RunjrSiCKLSNMF}} to save time
+#' @slot lossCalcSubsample A vector that holds the cell indices on which \code{\link{PlotLossvsLatentFactors}} was calculated
+#' @slot latent.factor.elbow.values A data frame that holds the relevant information to plot the latent factor elbow plot
+#' @slot minibatch Indicator variable that states whether the algorithm should use mini-batch updates.
+#' @slot clusterdiagnostics List of the cluster diagnostic results for the SickleJr object. Includes diagnostic plots from \code{\link[factoextra]{fviz_nbclust}} and
+#' and diagnostics from \code{\link[clValid]{clValid}}
+#' @slot clusters List of results of different clustering methods performed on the SickleJr object
+#' @slot metadata List of metadata
+#' @slot loss Vector of the value for the loss function
+#' @slot umap List of different UMAP-based dimension reductions using \code{\link[umap]{umap}}
+#' @slot plots Holds various \code{\link[ggplot2]{ggplot}} results for easy access of diagnostics and cluster visualizations
+#' @returns An object of class SickleJr
 #' @export
 SickleJr<-methods::setClass(
   "SickleJr",
   slots=c(
     count.matrices="list",
-    normalization.type="character",
     normalized.count.matrices="list",
     graph.laplacian.list="list",
     rowRegularization="character",
@@ -46,25 +50,26 @@ SickleJr<-methods::setClass(
     WHinitials="list",
     lossCalcSubsample="vector",
     latent.factor.elbow.values="data.frame",
-    online="logical",
+    minibatch="logical",
     clusterdiagnostics="list",
     clusters="list",
     metadata="list",
     loss="vector",
-    umap="list"
+    umap="list",
+    plots="list"
   )
 )
 
-#' @title Create an object of type SickleJr
+#' @title Create an object of class SickleJr
 #' @name CreateSickleJr
-#' @description Creates an object of type SickleJr that includes lists of sparse
-#' count matrices and allows users to specify the names of those count matrices
-#' @param count.matrices A list of count matrices; each view is one entry in the
-#' list. These count matrices should already be QC'd and the features filtered
-#' @param names Optional parameter with names for the count matrices
-#' @return A SickleJr object with sparse count matrices
+#' @description Using a list of sparse count matrices, create an object of class SickleJr
+#' and specify the names of these count matrices.
+#' @param count.matrices A list of quality-controlled count matrices with pre-filtered features where each modality corresponds to each matrix in the
+#' list
+#' @param names Optional parameter with names for the count matrices in vector format
+#' @returns An object of class SickleJr with sparse count matrices added to the \code{count.matrices} slot
 #' @examples
-#' SickleJrSim<-CreateSickleJr(SimData$Xmatrices)
+#' ExampleSickleJr<-CreateSickleJr(SimData$Xmatrices)
 CreateSickleJr<-function(count.matrices,names=NULL){
   if(length(names)!=length(count.matrices)){
     warning("\n Length of names does not match length of list of count matrices. Names of count matrices will remain unchanged.\n")
@@ -83,52 +88,71 @@ CreateSickleJr<-function(count.matrices,names=NULL){
 
 #' @title Build KNN graphs and generate their graph Laplacians
 #' @description Generate graph Laplacians for graph regularization of
-#' jrSiCKLSNMFNMF from the list of normalized count matrices
-#'@name BuildKNNGraphLaplacians
-#'@param SickleJr A SickleJr object
-#'@param k Number of KNN neighbors to calculate. By default, is set to 20
-#'@returns A list of graph Laplacians in sparse matrix format
+#' jrSiCKLSNMF from the list of raw count matrices using a KNN graph. Note that this
+#' is only appropriate when the number of features is considerably greater
+#' than the number of cells in all modalities. If this is not the case, please use
+#' \code{\link{BuildSNNGraphLaplacians}} or any other method of graph
+#' construction that does not rely on the Euclidean distance and store the graph Laplacians for
+#' each modality as a list in the \code{graph.laplacian.list} slot.
+#' @name BuildKNNGraphLaplacians
+#' @param SickleJr An object of class SickleJr
+#' @param k Number of KNN neighbors to calculate; by default, is set to 20
+#' @returns An object of class SickleJr with a list of graph Laplacians in sparse matrix format
+#' added to the \code{graph.laplacian.list} slot
+#' @examples
+#' SimSickleJrSmall<-BuildKNNGraphLaplacians(SimSickleJrSmall)
 #'@export
 BuildKNNGraphLaplacians<-function(SickleJr,k=20){
     counts<-SickleJr@count.matrices
     SickleJr@graph.laplacian.list<-lapply(counts,function(x){
-    laplacian_matrix(buildKNNGraph(x,transposed=TRUE,k=k))})
+    laplacian_matrix(scran::buildKNNGraph(x,transposed=TRUE,k=k))})
   return(SickleJr)
 }
 
 #' @title Build SNN graphs and generate their graph Laplacians
 #' @description Generate graph Laplacians for graph regularization of
-#' jrSiCKLSNMFNMF from the list of normalized count matrices
-#'@name BuildSNNGraphLaplacians
-#'@param SickleJr A SickleJr object
-#'@param k Number of KNN neighbors to calculate. By default, is set to 20
-#'@returns A list of graph Laplacians in sparse matrix format
+#' jrSiCKLSNMF from the list of raw count matrices using an SNN graph. SNN is more robust to
+#' situations where the number of cells outnumbers the number of features.
+#' @name BuildSNNGraphLaplacians
+#' @param SickleJr An object of class SickleJr
+#' @param k Number of KNN neighbors to calculate SNN graph; defaults to 20
+#' @returns An object of class SickleJr with list of graph Laplacians in sparse
+#' matrix format added to its \code{graph.laplacian.list} slot
+#' @examples
+#' SimSickleJrSmall<-BuildSNNGraphLaplacians(SimSickleJrSmall)
 #'@export
 BuildSNNGraphLaplacians<-function(SickleJr,k=20){
     counts<-SickleJr@count.matrices
     SickleJr@graph.laplacian.list<-lapply(counts,function(x){
-    laplacian_matrix(buildSNNGraph(x,transposed=TRUE,k=k))})
+    laplacian_matrix(scran::buildSNNGraph(x,transposed=TRUE,k=k))})
   return(SickleJr)
 }
 
 
 
-#' @title Normalize the count matrices and set whether to use the KL divergence
-#' based on the Poisson distribution or the Frobenius norm
-#' @description Perform normalization for count data. If you are planning to use the Frobenius norm,
-#'set frob=TRUE to log(x+1) normalize your count data. This step can be skipped for percentage data and
-#'spectra data. You may also skip this if you would like to perform a different form
-#'of normalization; however, please ensure that if using the Frobenius norm that all of the values are
-#'divided by the sum of all of the values.
-#'@name NormalizeCountMatrices
-#'@param SickleJr An object of type SickleJr with a count matrix. Users can choose to normalize using median
-#'library size normalization or log(x+1) normalization
-#'@param diffFunc A string. Set to "klp" to use the KL divergence based on the Poisson distribution
-#'or to "fr" to use the Frobenius norm. Defaults to KL divergence. This also determines
-#'the type of normalization to use.
-#'@param scaleFactor A list of numeric values to use as scale factors for the log(x+1)
-#'normalization when using the Frobenius diffFunction
-#'@returns A list of sparse, normalized matrices
+#' @title Normalize the count matrices and set whether to use the Poisson KL divergence
+#' or the Frobenius norm
+#' @description Normalize the count data within each modality. The default
+#' normalization, which should be used when using the KL divergence, is median
+#' library size normalization. To perform median library size normalization,
+#' each count within a cell is divided by its library size (i.e. the counts within a column are divided by the
+#' column sum). Then, all values are multiplied by the median library size
+#' (i.e. the median column sum). To use the Frobenius norm, set \code{frob=TRUE} to log\eqn{(x+1)}
+#' normalize your count data and use a desired \code{scaleFactor}.
+#' You may also use a different form of normalization and store these results
+#' in the \code{normalized.count.matrices} slot.
+#' @name NormalizeCountMatrices
+#' @param SickleJr An object of class SickleJr
+#' @param diffFunc A string set to "klp" when using the Poisson KL divergence
+#'or to "fr" when using the Frobenius norm: default is KL divergence; this also determines
+#'the type of normalization
+#' @param scaleFactor A single numeric value (if using the same scale factor for each modality)
+#' or a list of numeric values to use (if using different scale factors in different modalities)
+#' as scale factors for the log\eqn{(x+1)} normalization when \code{diffFunc="fr"}
+#' @returns An object of class SickleJr with a list of sparse, normalized data matrices added to its \code{normalized.count.matrices} slot
+#' @examples
+#' SimSickleJrSmall<-NormalizeCountMatrices(SimSickleJrSmall)
+#' SimSickleJrSmall<-NormalizeCountMatrices(SimSickleJrSmall, diffFunc="fr",scaleFactor=1e6)
 #'@export
 
 NormalizeCountMatrices<-function(SickleJr,diffFunc="klp",scaleFactor=NULL){
@@ -189,18 +213,22 @@ NormalizeCountMatrices<-function(SickleJr,diffFunc="klp",scaleFactor=NULL){
 }
 
 
-#' @title Set lambda values, type of row regularization, for a SickleJr object
+#' @title Set lambda values and type of row regularization for an object of class SickleJr
 #' @description Provide the values for the graph regularization \eqn{\lambda_{\textbf{W}^v}}
-#' for each view as a list and provide a
+#' for each modality as a list and provide a
 #' @name SetLambdasandRowReg
-#' @param SickleJr a SickleJr object
-#' @param lambdaWlist A list of graph regularization constraints for the W matrices.
-#' Defaults to 2 views with the RNA view equal to 10 and the ATAC view equal to 50
-#' @param lambdaH lambda H value to add. Defaults to 500.
-#' @param rowReg Choose whether or not to enforce constraints on the rows. Enter
-#' "None" for no constraints and "L2Norm" for an L2 Norm constraint on the rows
-#' of H. Defaults to "None"
-#' @return SickleJr object with added lambda values
+#' @param SickleJr An object of class SickleJr
+#' @param lambdaWlist A list of graph regularization constraints for the \eqn{\mathbf{W}^v} matrices:
+#' defaults to 2 modalities with the RNA modality constraint equal to 10 and the ATAC modality constraint equal to 50
+#' @param lambdaH A numeric holding the sparsity constraint on \eqn{\mathbf{H}}: defaults to 500.
+#' @param rowReg A string that is equal to \code{"None"} for no constraints on the rows of \eqn{\mathbf{H}} and \code{"L2Norm"}
+#' to set the L2 norms of the rows of \eqn{\mathbf{H}} to be equal to 1: defaults to "None"
+#' @returns An object of class SickleJr with the lambda hyperparameter values added to its \code{lambdaWlist} and \code{lambdaH} slots
+#' @examples
+#' SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
+#' lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+#' SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
+#' lambdaWlist=list(3,15),lambdaH=0,rowReg="L2Norm")
 #' @export
 #'
 SetLambdasandRowReg<-function(SickleJr,lambdaWlist=list(10,50),lambdaH=500,rowReg="None"){
@@ -210,30 +238,37 @@ SetLambdasandRowReg<-function(SickleJr,lambdaWlist=list(10,50),lambdaH=500,rowRe
   return(SickleJr)
 }
 
-#' @title Generate the W and H matrices
-#' @description Create the W and H matrices via non-negative double singular
-#' value decomposition (nndsvd) or randomization. For randomization, we will run
-#' the algorithm for 10 steps at the chosen value and pick the W and H values with
+#' @title Generate the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix
+#' @description Create the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix via non-negative double singular
+#' value decomposition (NNDSVD) or randomization. For randomization, the algorithm runs for 10 rounds
+#' for the desired number of random initializations and picks the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix with
 #' the lowest achieved loss
 #' @name GenerateWmatricesandHmatrix
-#' @param SickleJr a SickleJr object
-#' @param d number of latent factors to use. Defaults to 10.
-#' @param random Choose whether to use nndsvd or random initialization. Defaults to nndsvd
-#' @param numberReps Number of random initializations to use. Defaults to 5.
-#' @param seed Random seed for reproducibility with random initializations
-#' @param online Indicates whether or not to use an online algorithm
-#' @param batchsize Indicates size of batches for online NMF
-#' @param random_W_updates Indicates whether to only update W once per round of
-#' H updates. Only appropriate for online algorithms and for randomly generated
-#' algorithms
-#' @param subsample A vector of values to use for subsampling. Only appropriate
-#' for determining proper values for d.
-#' @returns SickleJr A SickleJr object with W and H matrices added.
+#' @param SickleJr An object of class SickleJr
+#' @param d Number of latent factors to use: defaults to 10
+#' @param random Boolean indicating whether to use random initialization (\code{TRUE}) or NNDSVD (\code{FALSE}): default is NNDSVD
+#' @param numberReps Number of random initializations to use: default is 5
+#' @param seed Random seed for reproducibility of random initializations
+#' @param minibatch Indicates whether or not to use the mini-batch algorithm
+#' @param batchsize Size of batches for mini-batch NMF
+#' @param random_W_updates Indicates whether to only update each \eqn{\mathbf{W}^v} once per round of
+#' \eqn{\mathbf{H}} updates; only appropriate for mini-batch algorithms
+#' @param subsample A vector of values to use for subsampling; only appropriate
+#' when determining proper values for d.
+#' @param usesvd Indicates whether to use \code{R}'s singular value decomposition function
+#' svd (TRUE) or irlba (FALSE), default is \code{FALSE}; use irlba for larger datasets
+#' to increase performance
+#' @returns SickleJr An object of class SickleJr with the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix added.
 #' @export
+#' @examples
+#' SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
+#' lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+#' SimSickleJrSmall<-GenerateWmatricesandHmatrix(SimSickleJrSmall,d=5,usesvd=TRUE)
 #'
 GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
-                                      numberReps=100,seed=5,online=FALSE,batchsize=-1,
-                                      random_W_updates=FALSE,subsample=1:dim(SickleJr@count.matrices[[1]])[2]){
+                                      numberReps=100,seed=5,minibatch=FALSE,batchsize=-1,
+                                      random_W_updates=FALSE,subsample=1:dim(SickleJr@count.matrices[[1]])[2],
+                                      usesvd=FALSE){
   Hconcatmat<-NULL
   NormalizedXmatrices<-SickleJr@normalized.count.matrices
   if(length(subsample)<dim(SickleJr@normalized.count.matrices[[1]])[2]){
@@ -244,11 +279,11 @@ GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
   rowReg=SickleJr@rowRegularization
 
   if(!random){
-    svdlist<-lapply(NormalizedXmatrices,function(x) .nndsvd(A=x,k=d,flag=1))
+    svdlist<-lapply(NormalizedXmatrices,function(x) .nndsvd(A=x,k=d,flag=1,svd=usesvd))
     WandMeanlist<-lapply(svdlist,function(x) list(W=x$W,meanW=mean(apply(x$W,2,function(y) sum(y)))))
     SickleJr@Wlist<-lapply(WandMeanlist,function(x) apply(x$W,2,function(y) y/sum(y))*x$meanW)
     bigXmatrix<-do.call(rbind,NormalizedXmatrices)
-    svdH<-.nndsvd(A=bigXmatrix,k=d,flag=1)
+    svdH<-.nndsvd(A=bigXmatrix,k=d,flag=1,svd=usesvd)
     Hconcatmat<-t(svdH$H)
     if(rowReg=="L2Norm"){
       norms<-apply(Hconcatmat,2,function(x)sqrt(sum(x^2)))
@@ -296,7 +331,7 @@ GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
     SickleJr@Wlist<-Wnew
     rm(Hconcatmat)
     rm(Wnew)
-    SickleJr<-RunjrSiCKLSNMF(SickleJr,rounds=5,online=online,random_W_updates=random_W_updates,
+    SickleJr<-RunjrSiCKLSNMF(SickleJr,rounds=5,minibatch=minibatch,random_W_updates=random_W_updates,
                    batchsize=batchsize,seed=seed,display_progress = FALSE,suppress_warnings = TRUE)
     output[i]=tail(SickleJr@loss$Loss,1)
     if(which.min(output[which(output>0)])!=i){
@@ -311,43 +346,43 @@ GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
   return(SickleJr)
 }
 
-#' @title Creating plots to help determine the number of latent factors to use for jrSiCKLSNMF
-#' @description This generates plots of the lowest achieved loss after a
-#' user-specified number of iterations (default 200)
+#' @title Create plots to help determine the number of latent factors to use for jrSiCKLSNMF
+#' @description Generate plots of the lowest achieved loss after a
+#' pre-specified number of iterations (default 100)
 #' of the jrSiCKLSNMF algorithm for each latent factor (defaults to 2:20). This operates similarly to a
 #' scree plot, so please select a number of latent factors that corresponds to the
-#' elbow of the plot. This function will not uniformly decrease, so an increase in loss
-#' may be expected. Select the minimum loss or a point that appears to be an elbow.
+#' elbow of the plot. This method is not appropriate for larger sets of data (more than 1000 cells)
 #' @name PlotLossvsLatentFactors
-#' @param SickleJr A SickleJr object
-#' @param rounds Number of rounds to use. Defaults to 20. This process will take some time,
+#' @param SickleJr An object of class SickleJr
+#' @param rounds Number of rounds to use: defaults to 100; this process is time consuming,
 #' so a high number of rounds is not recommended
-#' @param differr A tolerance of updates after which to stop updating. For these plots,
-#' this is set to 1e-4 by default
-#' @param d_vector Vector of D values to test over. Defaults from 2 to 20.
-#' @param parallel Indicates whether or not you want to perform this using
-#' parallel computing
-#' @param nCores Number of desired cores. If null, defaults to the number of cores
-#' minus 1 for user convenience.
-#' @param subsampsize Indicates whether you want to perform this on a random subsample rather
-#' than on the whole dataset. Will speed up the process but will have lower accuracy on desired
-#' number of d
-#' @param online Indicates whether you want an online algorithm. Defaults to FALSE
-#' @param random Indicates whether to use random initialization to generate the W and H matrices
-#' Defaults to FALSE as this in general is less accurate.
-#' @param random_W_updates Only used for online algorithms. If TRUE, only updates W using the second
-#' to last H subset on the online algorithm
-#' @param seed Set a random seed
-#' @param batchsize Desired batch size. Do not use if you are using a subsample.
-#' @param lossonsubset Indicates whether to calculate the loss on a subset rather than the full dataset.
-#' Speeds up computation for larger datasets.
-#' @param losssubsetsize Number of cells to use for the loss subset. Defaults to full number of cells
-#' @return A SickleJr with an added ggplot object in slot LatentFactorDeterminationPlot
+#' @param differr Tolerance for the percentage update in the likelihood: for these plots,
+#' this defaults to \eqn{1e-4}
+#' @param d_vector Vector of \eqn{d} values to test: default is 2 to 20
+#' @param parallel Boolean indicating whether to use parallel computation
+#' @param nCores Number of desired cores; defaults to the number of cores of the current machine minus 1 for convenience
+#' @param subsampsize Size of the random subsample (defaults to \code{NULL}, which means all cells will be used); using a random subsample decreases computation time but sacrifices accuracy
+#' @param minibatch Boolean indicating whether to use the mini-batch algorithm: default is \code{FALSE}
+#' @param random Boolean indicating whether to use random initialization to generate the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix:
+#' defaults to \code{FALSE}
+#' @param random_W_updates Boolean parameter for mini-batch algorithm; if \code{TRUE}, only updates \eqn{\mathbf{W}^v} once per epoch on the
+#' penultimate subset of \eqn{\mathbf{H}}; otherwise updates \eqn{\mathbf{W}^v} after every update of the subset of \eqn{\mathbf{H}}
+#' @param seed Number representing the random seed
+#' @param batchsize Desired batch size; do not use if using a subsample
+#' @param lossonsubset Boolean indicating whether to calculate the loss on a subset rather than the full dataset; speeds up computation for larger datasets
+#' @param losssubsetsize Number of cells to use for the loss subset; default is total number of cells
+#' @returns An object of class SickleJr with a list of initialized \eqn{\mathbf{W}^v} matrices and an \eqn{\mathbf{H}} matrix
+#' for each latent factor \eqn{d\in\{1,...,D\}} added to the \code{WHinitials} slot, a data frame holding relevant
+#' values for plotting the elbow plot added to the \code{latent.factor.elbow.values} slot, diagnostic plots of the loss vs. the number of latent factors added to the \code{plots}
+#' slot, and the cell indices used to calculate the loss on the subsample added to the \code{lossCalcSubSample} slot
 #' @export
+#' @examples
+#' SimSickleJrSmall@latent.factor.elbow.values<-data.frame(NULL,NULL)
+#' SimSickleJrSmall<-PlotLossvsLatentFactors(SimSickleJrSmall,d_vector=c(2:6),rounds=10)
 
-PlotLossvsLatentFactors<-function(SickleJr,rounds=200,differr=1e-5,d_vector=c(2:20),
+PlotLossvsLatentFactors<-function(SickleJr,rounds=100,differr=1e-4,d_vector=c(2:20),
                                   parallel=FALSE,nCores=detectCores()-1,subsampsize=NULL,
-                                  online=FALSE,random=FALSE,random_W_updates=FALSE,seed=NULL,batchsize=-1,
+                                  minibatch=FALSE,random=FALSE,random_W_updates=FALSE,seed=NULL,batchsize=-1,
                                   lossonsubset=FALSE,losssubsetsize=dim(SickleJr@count.matrices[[1]])[2]){
   latentfactors<-SickleJr@latent.factor.elbow.values$latent_factor_number
   if(any(latentfactors%in%d_vector)){
@@ -378,8 +413,8 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=200,differr=1e-5,d_vector=c(2:
   }else{
     initsamp<-sample(1:dim(SickleJr@normalized.count.matrices[[1]])[2],losssubsetsize,replace=FALSE)
   }
-  if(is.numeric(subsampsize)&(online)){
-    stop("It is not appropriate to use both an online algorithm and a subsample.
+  if(is.numeric(subsampsize)&(minibatch)){
+    stop("It is not appropriate to use both the minibatch algorithm and a subsample.
          Please select only one.\n")
   }
   samp<-NULL
@@ -396,14 +431,14 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=200,differr=1e-5,d_vector=c(2:
   }else {
     samp=sample(1:dim(SickleJr@count.matrices[[1]])[2],subsampsize,replace=FALSE)
   }
-  if(random_W_updates & !online){
-    warning("\n Random W updates are only appropriate for online algorithms. Setting random_W_updates to FALSE.\n" )
+  if(random_W_updates & !minibatch){
+    warning("\n Random W updates are only appropriate for minibatch algorithms. Setting random_W_updates to FALSE.\n" )
     random_W_updates=FALSE
   }
   if(batchsize>dim(SickleJr@count.matrices[[1]])[2]){
-    warning("\n Batch size larger than number of cells. Will not use an online algorithm \n")
+    warning("\n Batch size larger than number of cells. Will not use the minibatch algorithm \n")
     batchsize=-1
-    online=FALSE
+    minibatch=FALSE
   }
   AdjL=lapply(SickleJr@graph.laplacian.list,function(x) {x@x[which(x@x>0)]=0
   return(-x)})
@@ -413,7 +448,7 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=200,differr=1e-5,d_vector=c(2:
   for(i in 1:length(SickleJr@normalized.count.matrices)){
     SickleJrSub[[i]]<-SickleJr@normalized.count.matrices[[i]][,samp]
   }
-  if(!online){
+  if(!minibatch){
     initsamp=1:dim(SickleJrSub[[1]])[2]
   }
   if(losssubsetsize<dim(SickleJrSub[[1]])[2]){
@@ -446,7 +481,7 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=200,differr=1e-5,d_vector=c(2:
                       display_progress=FALSE,
                       rounds=rounds,
                       diffFunc = toString(SickleJr@diffFunc),
-                      minrounds=200,
+                      minrounds=rounds,
                       suppress_warnings=TRUE,
                       initsamp = 1:dim(SickleJrSub[[1]])[2])
     return(vals[length(vals)])},cl=cl)
@@ -462,41 +497,67 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=200,differr=1e-5,d_vector=c(2:
     elbowvals=SickleJr@latent.factor.elbow.values
     plotvals<-ggplot(elbowvals,aes(x=latent_factor_number,y=Loss))+geom_line()+geom_point()+theme_bw()+ggtitle(paste0("Plot of Number of Latent Factors vs Loss after ",rounds," Iterations"))+xlab("Number of Latent Factors")
     print(plotvals)
+    SickleJr@plots[["LossvsLatentFactors"]]<-plotvals
     SickleJr@WHinitials<-WHinitials
     SickleJr@lossCalcSubsample<-samp
   return(SickleJr)
 }
 
 
-#' @title Set W matrices and H matrix from pre-calculated values
+#' @title Create elbow plots of the singular values derived from IRLBA
+#' to determine D for large datasets
+#' @description This generates v+1 plots, where v is the number of data modalities, of the approximate
+#' singular values generated by IRLBA.There is one plot for each modality and then a
+#' final plot that concatenates all of the modalities together. Choose the largest elbow
+#' value among the three plots.
+#' @param SickleJr An object of class SickleJr
+#' @param d Number of desired factors; it is important to select a number that
+#' allows you to see a clear elbow: defaults to 50.
+#' @returns An object of class SickleJr with plots for IRLBA diagnostics added to its \code{plots} slot
+#' @export
+#' @examples
+#' SimSickleJrSmall<-DetermineDFromIRLBA(SimSickleJrSmall,d=5)
+DetermineDFromIRLBA<-function(SickleJr,d=50){
+
+  modalitylabels<-names(SickleJr@normalized.count.matrices)
+  modalitylabels<-c(modalitylabels,"Concatenated")
+  concatmat<-do.call("rbind",SickleJr@normalized.count.matrices)
+  normcounts<-SickleJr@normalized.count.matrices
+  normcounts[[length(normcounts)+1]]<-concatmat
+  message("Calculating IRLBA for all data matrices")
+  IRLBAlist<-pblapply(normcounts,function(x) irlba(x,nv=d))
+  message("Preparing data for plotting")
+  Singular_values=NULL
+  Index=NULL
+  dataframelist<-pblapply(IRLBAlist,function(x){Index=c(1:length(x$d))
+    Singular_values=x$d
+    data.frame(Index,Singular_values)})
+  for(i in 1:length(dataframelist)){
+    dataframelist[[i]]<-cbind(dataframelist[[i]],Name=rep(modalitylabels[i],length(dataframelist[[i]][,1])))
+  }
+  message("Generating Plots")
+  ggplots<-pblapply(dataframelist,function(x) ggplot<-ggplot(x,aes(Index,Singular_values))+geom_point()+geom_line()+ggtitle(paste0("Index vs. Singular Value for ",x$Name[1]," Data"))+theme_bw()+ylab("Singular Value")+xlab("Index of Singular Value"))
+  lapply(ggplots,FUN=function(x) print(x))
+  SickleJr@plots[["DiagnosticIRLBA"]]<-ggplots
+  return(SickleJr)
+}
+
+#' @title Set \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix from pre-calculated values
 #' @description
 #' Use values calculated in the step to determine number of latent factors in the initial
-#' steps for the jrSiCKLSNMF algorithm. If only a subset was calculated, this uses
-#' nndsvd to calculate missing H values
-#'
-#' @param SickleJr A SickleJr object
+#' steps for the jrSiCKLSNMF algorithm. If only a subset was calculated, this produces an error.
+#' In this case, please use \code{\link{GenerateWmatricesandHmatrix}} to generate new
+#' \eqn{\mathbf{W}^v} matrices and a new \eqn{\mathbf{H}} matrix.
+#' @param SickleJr An object of class SickleJr
 #' @param d The number of desired latent factors
-#' @param usebatchupdate Whether to update in series of batches or not. Use for large numbers of cells
-#' @param batchsize Desired size of batches for initialization of large H values
-#' @param parallel Whether you want to run this operation in parallel
-#' @param seed Desired seed.
-#' @param nCores Number of desired cores
-#'
-#' @return a SickleJr object with a filled in W and H matrices.
+#' @returns An object of class SickleJr with the \code{Wlist} slot and the \code{H} slot filled from pre-calculated values.
+#' @examples SimSickleJrSmall<-SetWandHfromWHinitials(SimSickleJrSmall,d=5)
 #' @export
 #'
-SetWandHfromWHinitials<-function(SickleJr,d,usebatchupdate=TRUE,batchsize=1000,parallel=TRUE,seed=NULL,nCores=detectCores()-1){
-  if(is.numeric(seed)){
-    set.seed(seed)
-  }
-  if(!usebatchupdate&parallel){
-    warning("\n When not using batch updates, parallel computation is not feasible. \n")
-  }
+SetWandHfromWHinitials<-function(SickleJr,d){
   numcells<-dim(SickleJr@normalized.count.matrices[[1]])[2]
   numcellsinit<-dim(SickleJr@WHinitials[[1]][["H"]])[1]
   latent_factor_number=SickleJr@latent.factor.elbow.values$latent_factor_number
-  Hconcatmat<-matrix(data=0,nrow=numcells,ncol=d)
-  #SickleJr@H<-Hconcatmat
   if(!(d%in%latent_factor_number)){
     stop("\n Initial values for W and H and have not been calculated for the specified number of latent factors. Exiting...\n")
   }
@@ -504,83 +565,44 @@ SetWandHfromWHinitials<-function(SickleJr,d,usebatchupdate=TRUE,batchsize=1000,p
   listwh<-copy(SickleJr@WHinitials[[whichd]])
 
   if(numcells!=numcellsinit){
-    message("\n Number of total cells differs from number of cells used in calculation for the initial plot. Using values previously
-            calculated and using nndsvd initialization for the rest. \n")
-    #Set values to previously calculated ones
-    Hconcatmat[SickleJr@lossCalcSubsample,]=listwh$H
-    #Subset for nndsvd
-
-    bigXmatrix<-do.call(rbind,SickleJr@normalized.count.matrices)
-    if(usebatchupdate){
-      allcells<-1:numcells
-      shuffleindices<-sample(allcells[-SickleJr@lossCalcSubsample],(numcells-numcellsinit),replace=FALSE)
-      batchlist<-split(shuffleindices,ceiling(seq_along(shuffleindices)/batchsize))
-      if(!parallel){cl=NULL
-        }else{
-          cl<<-makeCluster(nCores)
-          clusterExport(cl,varlist=c("bigXmatrix","Hconcatmat","batchlist","d"),envir = environment())
-          clusterEvalQ(cl,library("jrSiCKLSNMF"))
-        }
-      svdlist<-pblapply(batchlist, function(x) {svdH=jrSiCKLSNMF:::.nndsvd(A=bigXmatrix[,x],k=d,flag=1)
-        t(svdH$H)},cl=cl)
-      stopCluster(cl)
-      for(i in 1:length(svdlist)){
-        Hconcatmat[batchlist[[i]],]<-svdlist[[i]]
-      }
-    }else{
-      svdH<-.nndsvd(A=bigXmatrix[,-SickleJr@lossCalcSubsample],k=d,flag=1)
-      Hconcatmat[-SickleJr@lossCalcSubsample,]<-t(svdH$H)
-    }
-    rowReg=SickleJr@rowRegularization
-    if(rowReg=="L2Norm"){
-      norms<-apply(Hconcatmat,2,function(x)sqrt(sum(x^2)))
-      for(i in 1:dim(Hconcatmat)[[2]]){
-        Hconcatmat[,i]=Hconcatmat[,i]/norms[i]
-      }
-    } else if(rowReg=="L1Norm"){
-      Hconcatmat<-apply(Hconcatmat,2,function(x)x/sum(x))
-    } else{
-      meanHconcat<-mean(apply(Hconcatmat,2,function(x) sum(x)))
-      Hconcatmat<-apply(Hconcatmat,2,function(x) x/sum(x))*meanHconcat
-    }
-    SickleJr@H=Hconcatmat
-    SickleJr@Wlist=SickleJr@WHinitials[[whichd]][["Wlist"]]
+    stop("\n Number of total cells differs from number of cells used in calculation for the initial plot. Use 'GenerateWMatricesandHmatrix' to generate the initial matrices. \n")
   } else{
     SickleJr@Wlist<-SickleJr@WHinitials[[whichd]][["Wlist"]]
     SickleJr@H<-SickleJr@WHinitials[[whichd]][["H"]]}
   return(SickleJr)
 }
 
-#' @title RunjrSiCKLSNMF
-#' @description Wrapper function to run jrSiCKLSNMF on a SickleJr object. Performs jrSiCKLSNMF on
+#' @title Run jrSiCKLSNMF on an object of class SickleJr
+#' @description Wrapper function to run jrSiCKLSNMF on an object of class SickleJr. Performs jrSiCKLSNMF on
 #' the given SickleJr
 #' @name RunjrSiCKLSNMF
-#' @param SickleJr a SickleJr object
-#' @param rounds Number of rounds. Defaults to 300.
-#' @param differr Tolerance for updating. Defaults to 1e-6.
-#' @param display_progress whether to display the progress bar for jrSiCKLSNMF
-#' @param lossonsubset Indicates whether you will be using a subset to calculate the loss function
+#' @param SickleJr An object of class SickleJr
+#' @param rounds Number of rounds: defaults to 2000
+#' @param differr Tolerance for percentage change in loss between updates: defaults to 1e-6
+#' @param display_progress Boolean indicating whether to display the progress bar for jrSiCKLSNMF
+#' @param lossonsubset Boolean indicating whether to use a subset to calculate the loss function
 #' rather than the whole dataset
-#' @param losssubsetsize Size of the subset of data to calculate the loss on
-#' @param online Indicates whether the algorithm will be online or not
-#' @param batchsize indicates size of batch for large matrices.
-#' @param random_W_updates indicates whether or not to use random_W_updates updates (i.e. only update
-#' W once per online iteration)
-#' @param seed Number to specify seed desired.
-#' @param minrounds A minimum number of rounds to use. Most helpful for the online algorithm
-#' @param suppress_warnings Indicates whether or not you want warnings suppressed
-#' @param subsample Used primarily when finding an appropriate number of latent factors. Defaults
-#' to all cells, but you can run jrSiCKLSNMF on just a subset of cells.
-#' @return a SickleJr object with updated W matrices, updated H matrices, and a vector of values for
-#' the loss function
+#' @param losssubsetsize Size of the subset of data on which to calculate the loss
+#' @param minibatch Boolean indicating whether to use mini-batch updates
+#' @param batchsize Size of batch for mini-batch updates
+#' @param random_W_updates Boolean indicating whether or not to use random_W_updates updates
+#' (i.e. only update \eqn{\mathbf{W}^v} once per mini-batch epoch)
+#' @param seed Number specifying desired random seed
+#' @param minrounds Minimum number of rounds: most helpful for the mini-batch algorithm
+#' @param suppress_warnings Boolean indicating whether to suppress warnings
+#' @param subsample A numeric used primarily when finding an appropriate number of
+#' latent factors: defaults to total number of cells
+#' @returns An object of class SickleJr with updated \eqn{\mathbf{W}^v} matrices, updated \eqn{\mathbf{H}} matrix, and a vector of values for
+#' the loss function added to the \code{Wlist}, \code{H}, and \code{loss} slots, respectively
+#' @examples SimSickleJrSmall<-RunjrSiCKLSNMF(SimSickleJrSmall,rounds=5)
 #' @export
 RunjrSiCKLSNMF<-function(SickleJr,rounds=30000,differr=1e-6,
                          display_progress=TRUE,lossonsubset=FALSE,losssubsetsize=dim(SickleJr@H)[1],
-                         online=FALSE,batchsize=1000,random_W_updates=FALSE,seed=NULL,minrounds=200,
+                         minibatch=FALSE,batchsize=1000,random_W_updates=FALSE,seed=NULL,minrounds=200,
                          suppress_warnings=FALSE,subsample=1:dim(SickleJr@normalized.count.matrices[[1]])[2]){
-  SickleJr@online<-FALSE
-  if(online){
-    SickleJr@online<-TRUE
+  SickleJr@minibatch<-FALSE
+  if(minibatch){
+    SickleJr@minibatch<-TRUE
   }
   if(is.numeric(seed)){
     set.seed(seed)
@@ -613,7 +635,7 @@ RunjrSiCKLSNMF<-function(SickleJr,rounds=30000,differr=1e-6,
                           display_progress = display_progress,
                           rounds=rounds,
                           diffFunc=SickleJr@diffFunc,
-                          online=online,
+                          minibatch=minibatch,
                           batchsize=batchsize,
                           initsamp=initsamp,
                           random_W_updates=random_W_updates,
@@ -623,55 +645,71 @@ RunjrSiCKLSNMF<-function(SickleJr,rounds=30000,differr=1e-6,
   return(SickleJr)
 }
 
-#' @title Plot a diagnostic plot for the online algorithm
-#' @description
-#' Plot the loss vs the number of iterations for the online algorithm. After a certain number of iterations,
-#' the loss should appear to oscillate around a value.
-#'
-#'
-#' @param SickleJr A SickleJr Object
-#'
-#' @return A diagnostic plot. SickleJr object remains unchanged.
+#' @title Plot a diagnostic plot for the mini-batch algorithm
+#' @description To ensure sufficient convergence of the loss for jrSiCKLSNMF with mini-batch updates, we
+#' plot the loss vs the number of iterations for the mini-batch algorithm.
+#' After a certain number of iterations, the loss should appear to oscillate
+#' around a value. Before continuing with downstream analyses, please ensure that
+#' the loss exhibits this sort of behavior. For the mini-batch algorithm, it is not
+#' possible to use the convergence criteria used for the batch version of the
+#' algorithm.
+#' @param SickleJr An object of class SickleJr
+#' @returns An object of class SickleJr with mini-batch diagnostic plots added to the \code{plots} slot.
+#' @examples SimSickleJrSmall<-MinibatchDiagnosticPlot(SimSickleJrSmall)
 #' @export
 
-OnlineDiagnosticPlot<-function(SickleJr){
-  if(!SickleJr@online){
-    warning("\n This is not an online algorithm, so this plot won't give you particularly helpful diagnostics.")
+MinibatchDiagnosticPlot<-function(SickleJr){
+  if(!SickleJr@minibatch){
+    warning("\n This is not a mini-batch algorithm, so this plot won't give you particularly helpful diagnostics.")
   }
   niterations<-4:length(SickleJr@loss$Loss)
   loss<-SickleJr@loss$Loss[-c(1:3)]
   lossdata<-data.frame(niterations=niterations,loss=loss)
   g<-ggplot(lossdata,aes(x=niterations,y=loss))+geom_line()+theme_bw()+ggtitle("Plot of Loss vs. Number of Iterations")+xlab("Number of Iterations")+ylab("Loss")
   print(g)
+  SickleJr@plots[["Mini-batch_Diagnostics"]]<-g
 }
 
 #' @title Perform clustering diagnostics
 #' @description
-#' A wrapper for clValid and factoextra functions to perform clustering diagnostics
-#' @param SickleJr A SickleJr object
-#' @param numclusts a vector of clusters to test
-#' @param clusteringmethod Clustering method. Defaults to k-means. Since other methods
+#' A wrapper for the \code{\link[clValid]{clValid}} and \code{\link[factoextra]{fviz_nbclust}} functions to perform clustering diagnostics
+#' @param SickleJr An object of class SickleJr
+#' @param numclusts A vector of integers indicating the number of clusters to test
+#' @param clusteringmethod String holding the clustering method: defaults to k-means; since the other methods
 #' are not implemented in jrSiCKLSNMF, it is recommended to use k-means.
-#' @param diagnosticmethods Which methods to plot. Defaults to all three of the available: wss, silhouette, and gap_stat
-#' @param clValidvalidation validation method to use for ClValid. Defaults to internal.
-#' @param printDiagnosticplots Whether to print the diagnostic plots
-#' @param printClValidDiagnostics Whether to print the diagnostic results from clValid
+#' @param diagnosticmethods Vector of strings indicating which methods to plot. Defaults to all three of the available: wss, silhouette, and gap_stat
+#' @param clValidvalidation String containing validation method to use for clValid. Defaults to internal.
+#' @param createDiagnosticplots Boolean indicating whether to create diagnostic plots for cluster size
+#' @param runclValidDiagnostics Boolean indicating whether to calculate the diagnostics from \code{clValid}
+#' @param printPlots Boolean indicating whether to print the diagnostic plots
+#' @param printclValid Boolean indicating whether to print the diagnostic results from clValid
+#' @param subset Boolean indicating whether to calculate the diagnostics on a subset of the data rather
+#' than on the whole dataset.
+#' @param subsetsize Numeric value indicating size of the subset
+#' @param seed Numeric value holding the random seed
 #'
-#' @return a SickleJr object with cluster diagnostics
+#' @returns An object of class SickleJr with cluster diagnostics added to its \code{clusterdiagnostics} slot
+#' @examples #Since these data are too small, the clValid diagnostics do not run
+#' #properly. See the vignette for an example with the clValid diagnostics
+#' SimSickleJrSmall<-DetermineClusters(SimSickleJrSmall,numclusts=2:5,runclValidDiagnostics=FALSE)
 #' @export
-determineClusters<-function(SickleJr,numclusts=2:20,clusteringmethod="kmeans",
+DetermineClusters<-function(SickleJr,numclusts=2:20,clusteringmethod="kmeans",
                             diagnosticmethods=c("wss","silhouette","gap_stat"),
-                            clValidvalidation="internal",printDiagnosticplots=TRUE,printClValidDiagnostics=TRUE,subset=TRUE,subsetsize=1000,seed=15){
+                            clValidvalidation="internal",createDiagnosticplots=TRUE,
+                            runclValidDiagnostics=TRUE,printPlots=TRUE,
+                            printclValid=TRUE,
+                            subset=FALSE,subsetsize=1000,
+                            seed=NULL){
 
   ingraph<-FALSE
   inclValid<-FALSE
   if((clusteringmethod%in% c("kmeans","clara","fanny","dbscan","Mclust","HCPC","hkmeans"))&
      !(clusteringmethod%in% c("hierarchical","kmeans","diana","fanny","som","model","sota","pam","clara","agnes"))){
-    warning("\n This clustering method is not available in clValid. Only graphs will be printed and saved in the clusterdiagnostics node.\n")
+    warning("\n This clustering method is not available in clValid. Only graphs will be printed and saved in the clusterdiagnostics slot.\n")
     ingraph<-TRUE
     }else if(!(clusteringmethod%in% c("kmeans","clara","fanny","dbscan","Mclust","HCPC","hkmeans"))&
            (clusteringmethod%in% c("hierarchical","kmeans","diana","fanny","som","model","sota","pam","clara","agnes"))){
-      warning("\n This clustering method is not available in factoextra. Only information from clValid will be printed and saved in the clusterdiagnostics node.\n")
+      warning("\n This clustering method is not available in factoextra. Only information from clValid will be printed and saved in the clusterdiagnostics slot.\n")
       inclValid<-TRUE
   }else if ((clusteringmethod%in% c("kmeans","clara","fanny","dbscan","Mclust","HCPC","hkmeans"))&
             (clusteringmethod%in% c("hierarchical","kmeans","diana","fanny","som","model","sota","pam","clara","agnes"))){
@@ -697,16 +735,21 @@ determineClusters<-function(SickleJr,numclusts=2:20,clusteringmethod="kmeans",
   }else{
     Hrun<-SickleJr@H
   }
+  if(!createDiagnosticplots){
+    ingraph=FALSE
+  }
   if(ingraph){
     ggplotlist<-lapply(diagnosticmethods,function(x) fviz_nbclust(Hrun,match.fun(clusteringmethod),method=x,k.max=max(numclusts)))
-    if(printDiagnosticplots){
+    if(printPlots){
       lapply(ggplotlist,function(x) print(x))
     }
   }
+  if(!runclValidDiagnostics){
+    inclValid<-FALSE
+  }
   if(inclValid){
-
     clValidobj<-clValid(Hrun,clMethods=clusteringmethod,validation=clValidvalidation,nClust=numclusts)
-    if(printClValidDiagnostics){
+    if(printclValid){
       print(summary(clValidobj))
     }
   }
@@ -714,45 +757,81 @@ determineClusters<-function(SickleJr,numclusts=2:20,clusteringmethod="kmeans",
   return(SickleJr)
 }
 
-#' @title ClusterSickleJr
-#' @description Perform either K-means or spectral clustering on the H matrix.
-#' Defaults to kmeans.
+#' @title Cluster the \eqn{\mathbf{H}} matrix
+#' @description Perform k-means, spectral clustering, clustering based off of the
+#' index of the maximum latent factor, or Louvain community detection on the \eqn{\mathbf{H}} matrix.
+#' Defaults to k-means.
 #' @name ClusterSickleJr
-#' @param SickleJr an object of class SickleJr
-#' @param numclusts Number of clusters
-#' @param method Clustering method. Can choose between kmeans and spectral clustering
-#' @param neighbors parameter for spectral clustering
-#'
-#' @return a SickleJr object with added clustering information
+#' @param SickleJr An object of class SickleJr
+#' @param numclusts Number of clusters; can be NULL when method is "max" or "louvain"
+#' @param method String holding the clustering method: can choose "kmeans" for
+#' k-means clustering, "spectral" for spectral clustering, "louvain" for Louvain
+#' community detection or "max" for clustering based on the maximum row value; note that
+#' "max" is only appropriate for jrSiCKLSNMF with L2 norm row regularization
+#' @param neighbors Number indicating the number of neighbors to use to generate the
+#' graphs for spectral clustering and Louvain community detection: both of these
+#' methods require the construction of a graph first (here we use KNN);
+#' defaults to 20 and unused when the clustering method equal to "kmeans" or "max"
+#' @param louvainres Numeric containing the resolution parameter for Louvain
+#' community detection; unused for all other methods
+#' @examples SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,3)
+#' SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="louvain",neighbors=5)
+#' SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="spectral",neighbors=5,numclusts=3)
+#' #DO NOT DO THIS FOR REAL DATA; this is just to illustrate max clustering
+#' SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,rowReg="L2Norm")
+#' SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="max")
+#' @returns SickleJr- an object of class SickleJr with added clustering information
 #' @export
-ClusterSickleJr<-function(SickleJr,numclusts,method="kmeans",neighbors=NULL){
+ClusterSickleJr<-function(SickleJr,numclusts,method="kmeans",neighbors=20,louvainres=0.3){
   clust<-NULL
   if(method=="kmeans"){
    clust<-kmeans(SickleJr@H,centers=numclusts,nstart=1000)$cluster
   }else if(method=="spectral"){
     clust<-specClust(SickleJr@H,centers=numclusts,nn=neighbors)$cluster
-  }else {print("Please enter 'kmeans' for k-means clustering or 'spectral' for spectral clustering")}
+  }else if(method=="louvain"){
+    knngraph<-scran::buildKNNGraph(SickleJr@H,transposed=TRUE,k=neighbors)
+    newvals<-cluster_louvain(knngraph,resolution = louvainres)
+    clust<-newvals$membership
+  }else if(method=="max"){
+    if(SickleJr@rowRegularization!="L2Norm"){
+      stop("\n Clustering based off the maximum latent factor per observation is not appropriate for H matrices that do not utilize the 'L2Norm' constraint\n")
+    }
+    clust<-apply(SickleJr@H,1,function(x) which.max(x))
+    }else {print("Please enter 'kmeans' for k-means clustering, 'spectral' for spectral clustering,
+                'louvain' for Louvain community detection or 'max' to cluster based on
+                the maximum latent factor for each observation. Please note that 'max'
+                is only appropriate for the L2Norm-based variant.")}
   SickleJr@clusters[[method]]<-clust
   return(SickleJr)
 }
 
 
-#' @title Calculate the UMAP for a SickleJr object.
-#' @description Perform UMAP on the H matrix alone (default) or within a view by
-#' using UMAP on the \eqn{\textbf{W}^v}H corresponding to view \eqn{v}
+#' @title Calculate the UMAP for an object of class SickleJr
+#' @description Perform UMAP on the \eqn{\mathbf{H}} matrix alone (default) or within a modality by
+#' using UMAP on the \eqn{W^vH} corresponding to modality \eqn{v}.
 #' @name CalculateUMAPSickleJr
 #' @param SickleJr An object of class SickleJr
-#' @param umap.settings Optional settings for UMAP. Set to default.
-#' @param view If this parameter is set, this will perform UMAP on W_view%*%t(H) rather than
-#' on H alone. Warning that this takes a very long time for large datasets and is
-#' not recommended for them.
-#'
-#' @return a SickleJr with added UMAP calculations based on the H matrix alone or within a view
+#' @param umap.settings Optional settings for UMAP; defaults to \code{\link[umap]{umap.defaults}}
+#' @param modality A number corresponding to the desired modality; if set, will perform UMAP on
+#' \eqn{\mathbf{W}^{\mathtt{modality}}}%*%t(\eqn{\mathbf{H}}) rather than
+#' on \eqn{\mathbf{H}} alone; not recommended for datasets of more than 1000 cells
+#' @returns An object of class SickleJr with UMAP output based on the \eqn{\mathbf{H}} matrix alone or within a modality added to its \code{umap} slot
+#' @examples
+#' #Since this example has only 10 observations,
+#' #we need to modify the number of neighbors from the default of 15
+#' umap.settings=umap::umap.defaults
+#' umap.settings$n_neighbors=2
+#' SimSickleJrSmall<-CalculateUMAPSickleJr(SimSickleJrSmall,
+#' umap.settings=umap.settings)
+#' SimSickleJrSmall<-CalculateUMAPSickleJr(SimSickleJrSmall,
+#' umap.settings=umap.settings,modality=1)
+#' SimSickleJrSmall<-CalculateUMAPSickleJr(SimSickleJrSmall,
+#' umap.settings=umap.settings,modality=2)
 #' @export
-CalculateUMAPSickleJr<-function(SickleJr,umap.settings=umap::umap.defaults,view=NULL){
-  if(!is.null(view)){
-    WH<-t(SickleJr@Wlist[[view]]%*%t(SickleJr@H))
-    WHname<-paste0("W",view,"H")
+CalculateUMAPSickleJr<-function(SickleJr,umap.settings=umap::umap.defaults,modality=NULL){
+  if(!is.null(modality)){
+    WH<-t(SickleJr@Wlist[[modality]]%*%t(SickleJr@H))
+    WHname<-paste0("W",modality,"H")
     SickleJr@umap[[WHname]]<-umap::umap(WH,config=umap.settings)
   }else{
     SickleJr@umap[["H"]]<-umap::umap(SickleJr@H,config=umap.settings)
@@ -760,33 +839,39 @@ CalculateUMAPSickleJr<-function(SickleJr,umap.settings=umap::umap.defaults,view=
   return(SickleJr)
 }
 
-#' @title AddSickleJrMetadata
-#' @description Add metadata to a SickleJr object
+#' @title Add metadata to an object of class SickleJr
+#' @description Add any type of metadata to an object of class SickleJr. Metadata
+#' are stored in list format under the name specified in \code{metadataname} of each node in slot \code{metadata}.
 #' @name AddSickleJrMetadata
-#' @param SickleJr a SickleJr object
-#' @param metadata The metadata you wish to add to the object
-#' @param metadataname The name that you wish to call the added metadata
-#' @return SickleJr with added metadata
+#' @param SickleJr An object of class SickleJr holding at least one count matrix of omics data
+#' @param metadata Metadata to add to the SickleJr object; there are no restrictions on type
+#' @param metadataname A string input that indicates the desired name for the added
+#' metadata.
+#' @returns An object of class SickleJr with added metadata
+#' @examples SimSickleJrSmall<-AddSickleJrMetadata(SimSickleJrSmall,
+#' SimData$cell_type,"cell_types_full_data")
 #' @export
-AddSickleJrMetaData<-function(SickleJr,metadata,metadataname){
+AddSickleJrMetadata<-function(SickleJr,metadata,metadataname){
   SickleJr@metadata[[metadataname]]<-metadata
   return(SickleJr)
 }
 
-#' @title PlotSickleJrUMAP
+#' @title Generate UMAP plots for an object of class SickleJr
 #' @description Plot the first and second dimensions of a UMAP dimension reduction
-#' and color either by cluster or metadata
+#' and color either by clustering results or metadata.
 #' @name PlotSickleJrUMAP
-#' @param SickleJr An object of type SickleJr
-#' @param umap.view String corresponding to the name of the UMAP you are interested in. Defaults to H
-#' @param cluster Cluster you wish to color by
-#' @param title Optional title for your plot
-#' @param colorbymetadata Name of metadata column if you wish to color by metadata
-#' @param legendname Option if you want to give a different name for your legend
-#'
-#' @return A ggplot2 object of the plots of UMAP1 and UMAP2 for the SickleJr object
+#' @param SickleJr An object of class SickleJr
+#' @param umap.modality String corresponding to the name of the UMAP of interest: defaults to \code{"H"}
+#' @param cluster String input that indicates which cluster to color by: defaults to \code{"kmeans"}
+#' @param title String input for optional plot title
+#' @param colorbymetadata Name of metadata column if coloring by metadata
+#' @param legendname String input that to allow specification of a different legend name
+#' @returns An object of class SickleJr with plots added to the \code{plots} slot
+#' @examples SimSickleJrSmall<-PlotSickleJrUMAP(SimSickleJrSmall,
+#' title="K-Means Example")
+#' SimSickleJrSmall<-PlotSickleJrUMAP(SimSickleJrSmall,umap.modality=1)
 #' @export
-PlotSickleJrUMAP<-function(SickleJr,umap.view="H",cluster="kmeans",title="",colorbymetadata=NULL,legendname=NULL){
+PlotSickleJrUMAP<-function(SickleJr,umap.modality="H",cluster="kmeans",title="",colorbymetadata=NULL,legendname=NULL){
   if(is.null(colorbymetadata)){
     color=SickleJr@clusters[[cluster]]
     if(is.null(legendname)){
@@ -796,10 +881,14 @@ PlotSickleJrUMAP<-function(SickleJr,umap.view="H",cluster="kmeans",title="",colo
   }else{
     color=SickleJr@metadata[[colorbymetadata]]
     if(is.null(legendname)){legendname=colorbymetadata}
+    cluster=colorbymetadata
   }
-  UMAP1=SickleJr@umap[[umap.view]]$layout[,1]
-  UMAP2=SickleJr@umap[[umap.view]]$layout[,2]
+  UMAP1=SickleJr@umap[[umap.modality]]$layout[,1]
+  UMAP2=SickleJr@umap[[umap.modality]]$layout[,2]
   umapvals<-data.frame(UMAP1=UMAP1,UMAP2=UMAP2,cluster=color)
-  ggplot(umapvals,aes(x=UMAP1,y=UMAP2,color=factor(color)))+geom_point()+theme_bw()+
+  plots<-ggplot(umapvals,aes(x=UMAP1,y=UMAP2,color=factor(color)))+geom_point()+theme_bw()+
     ggtitle(title)+guides(color=guide_legend(title=legendname))
+  SickleJr@plots[[paste0(umap.modality,":",cluster)]]<-plots
+  print(plots)
+  return(SickleJr)
 }

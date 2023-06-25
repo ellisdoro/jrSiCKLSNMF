@@ -13,7 +13,7 @@
 
 #nnsvd performs non-negative double singular value decomposition This code is adapted from the
 #R NMF package and is a port to R of the MATLAB code from Boutsidis.
-.nndsvd <- function(A, k, flag=0){
+.nndsvd <- function(A, k, flag=0,svd=FALSE){
 
   #check the input matrix
   if( any(A<0) ) stop('The input matrix contains negative elements !')
@@ -27,8 +27,13 @@
   H = matrix(0, k, n);
 
   #1st SVD --> partial SVD rank-k to the input matrix A.
+  if(svd){
   s = svd(A, k, k);
   U <- s$u; S <- s$d; V <- s$v
+  }else{
+    s=irlba(A,nv=k)
+    U<-s$u; S<-s$d; V<-s$v
+  }
 
   #-------------------------------------------------------
   # We also recommend the use of propack for the SVD

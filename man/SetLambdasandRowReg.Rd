@@ -2,7 +2,7 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{SetLambdasandRowReg}
 \alias{SetLambdasandRowReg}
-\title{Set lambda values, type of row regularization, for a SickleJr object}
+\title{Set lambda values and type of row regularization for an object of class SickleJr}
 \usage{
 SetLambdasandRowReg(
   SickleJr,
@@ -12,21 +12,26 @@ SetLambdasandRowReg(
 )
 }
 \arguments{
-\item{SickleJr}{a SickleJr object}
+\item{SickleJr}{An object of class SickleJr}
 
-\item{lambdaWlist}{A list of graph regularization constraints for the W matrices.
-Defaults to 2 views with the RNA view equal to 10 and the ATAC view equal to 50}
+\item{lambdaWlist}{A list of graph regularization constraints for the \eqn{\mathbf{W}^v} matrices:
+defaults to 2 modalities with the RNA modality constraint equal to 10 and the ATAC modality constraint equal to 50}
 
-\item{lambdaH}{lambda H value to add. Defaults to 500.}
+\item{lambdaH}{A numeric holding the sparsity constraint on \eqn{\mathbf{H}}: defaults to 500.}
 
-\item{rowReg}{Choose whether or not to enforce constraints on the rows. Enter
-"None" for no constraints and "L2Norm" for an L2 Norm constraint on the rows
-of H. Defaults to "None"}
+\item{rowReg}{A string that is equal to \code{"None"} for no constraints on the rows of \eqn{\mathbf{H}} and \code{"L2Norm"}
+to set the L2 norms of the rows of \eqn{\mathbf{H}} to be equal to 1: defaults to "None"}
 }
 \value{
-SickleJr object with added lambda values
+An object of class SickleJr with the lambda hyperparameter values added to its \code{lambdaWlist} and \code{lambdaH} slots
 }
 \description{
 Provide the values for the graph regularization \eqn{\lambda_{\textbf{W}^v}}
-for each view as a list and provide a
+for each modality as a list and provide a
+}
+\examples{
+SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
+lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
+lambdaWlist=list(3,15),lambdaH=0,rowReg="L2Norm")
 }

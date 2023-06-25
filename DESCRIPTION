@@ -1,18 +1,29 @@
 Package: jrSiCKLSNMF
 Type: Package
-Title: Joint graph Regularized Single-Cell Kullback-Leibler Sparse Non-negative Matrix Factorization
-Version: 1.2
-Date: 2023-22-04
-Author: Dorothy Ellis
+Title: Clustering Single-Cell Multimodal Omics Data with Joint Graph Regularized Single-Cell Kullback-Leibler Sparse Non-Negative Matrix Factorization
+Version: 1.2.1
+Authors@R:
+    person("Dorothy","Ellis",,"ddemoreellis@gmail.com",role=c("aut","cre"),
+    comment=c(ORCID="0000-0002-8624-0042"))
 Maintainer: Dorothy Ellis <ddemoreellis@gmail.com>
-Description: The package jrSiCKLSNMF contains methods to perform Joint graph Regularized Single-Cell Kullback-Leibler Sparse Non-negative Matrix Factorization on multi-assay single-cell omics data.
-License: GPL (>= 2)
+Description: Methods to perform Joint graph Regularized Single-Cell 
+    Kullback-Leibler Sparse Non-negative Matrix Factorization (jrSiCKLSNMF, 
+    pronounced "junior sickles NMF") on quality controlled multi-assay 
+    single-cell omics count data, specifically dual-assay scRNA-seq
+    and scATAC-seq data. 'jrSiCKLSNMF' extracts meaningful latent 
+    factors that are shared across omics views. These factors enable accurate cell-type 
+    clustering, and facilitate visualizations. Also includes methods for mini-
+    batch updates and other adaptations for larger datasets.
+License: GPL-3 + file LICENSE
 Encoding: UTF-8
 RoxygenNote: 7.2.3
-Imports: Rcpp (>= 1.0.9), scran, igraph, umap, kknn, ggplot2, methods, stats, rlang, Matrix, data.table,parallel,pbapply,cluster,MASS,clValid,factoextra,foreach
+Imports: Rcpp (>= 1.0.9), igraph, umap, kknn, ggplot2, methods, stats, 
+    rlang, Matrix, data.table,parallel,pbapply,cluster,MASS,clValid,factoextra,
+    foreach,irlba,scran
 Suggests: 
     knitr,
     rmarkdown
 LinkingTo: Rcpp, RcppArmadillo, RcppProgress
 LazyData: true
+LazyDataCompression: xz
 VignetteBuilder: knitr

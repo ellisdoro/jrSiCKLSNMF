@@ -2,7 +2,7 @@
 % Please edit documentation in R/jrSiCKLSNMF.R
 \name{GenerateWmatricesandHmatrix}
 \alias{GenerateWmatricesandHmatrix}
-\title{Generate the W and H matrices}
+\title{Generate the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix}
 \usage{
 GenerateWmatricesandHmatrix(
   SickleJr,
@@ -10,40 +10,50 @@ GenerateWmatricesandHmatrix(
   random = FALSE,
   numberReps = 100,
   seed = 5,
-  online = FALSE,
+  minibatch = FALSE,
   batchsize = -1,
   random_W_updates = FALSE,
-  subsample = 1:dim(SickleJr@count.matrices[[1]])[2]
+  subsample = 1:dim(SickleJr@count.matrices[[1]])[2],
+  usesvd = FALSE
 )
 }
 \arguments{
-\item{SickleJr}{a SickleJr object}
+\item{SickleJr}{An object of class SickleJr}
 
-\item{d}{number of latent factors to use. Defaults to 10.}
+\item{d}{Number of latent factors to use: defaults to 10}
 
-\item{random}{Choose whether to use nndsvd or random initialization. Defaults to nndsvd}
+\item{random}{Boolean indicating whether to use random initialization (\code{TRUE}) or NNDSVD (\code{FALSE}): default is NNDSVD}
 
-\item{numberReps}{Number of random initializations to use. Defaults to 5.}
+\item{numberReps}{Number of random initializations to use: default is 5}
 
-\item{seed}{Random seed for reproducibility with random initializations}
+\item{seed}{Random seed for reproducibility of random initializations}
 
-\item{online}{Indicates whether or not to use an online algorithm}
+\item{minibatch}{Indicates whether or not to use the mini-batch algorithm}
 
-\item{batchsize}{Indicates size of batches for online NMF}
+\item{batchsize}{Size of batches for mini-batch NMF}
 
-\item{random_W_updates}{Indicates whether to only update W once per round of
-H updates. Only appropriate for online algorithms and for randomly generated
-algorithms}
+\item{random_W_updates}{Indicates whether to only update each \eqn{\mathbf{W}^v} once per round of
+\eqn{\mathbf{H}} updates; only appropriate for mini-batch algorithms}
 
-\item{subsample}{A vector of values to use for subsampling. Only appropriate
-for determining proper values for d.}
+\item{subsample}{A vector of values to use for subsampling; only appropriate
+when determining proper values for d.}
+
+\item{usesvd}{Indicates whether to use \code{R}'s singular value decomposition function
+svd (TRUE) or irlba (FALSE), default is \code{FALSE}; use irlba for larger datasets
+to increase performance}
 }
 \value{
-SickleJr A SickleJr object with W and H matrices added.
+SickleJr An object of class SickleJr with the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix added.
 }
 \description{
-Create the W and H matrices via non-negative double singular
-value decomposition (nndsvd) or randomization. For randomization, we will run
-the algorithm for 10 steps at the chosen value and pick the W and H values with
+Create the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix via non-negative double singular
+value decomposition (NNDSVD) or randomization. For randomization, the algorithm runs for 10 rounds
+for the desired number of random initializations and picks the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix with
 the lowest achieved loss
+}
+\examples{
+SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
+lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+SimSickleJrSmall<-GenerateWmatricesandHmatrix(SimSickleJrSmall,d=5,usesvd=TRUE)
+
 }

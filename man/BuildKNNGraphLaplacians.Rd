@@ -7,14 +7,23 @@
 BuildKNNGraphLaplacians(SickleJr, k = 20)
 }
 \arguments{
-\item{SickleJr}{A SickleJr object}
+\item{SickleJr}{An object of class SickleJr}
 
-\item{k}{Number of KNN neighbors to calculate. By default, is set to 20}
+\item{k}{Number of KNN neighbors to calculate; by default, is set to 20}
 }
 \value{
-A list of graph Laplacians in sparse matrix format
+An object of class SickleJr with a list of graph Laplacians in sparse matrix format
+added to the \code{graph.laplacian.list} slot
 }
 \description{
 Generate graph Laplacians for graph regularization of
-jrSiCKLSNMFNMF from the list of normalized count matrices
+jrSiCKLSNMF from the list of raw count matrices using a KNN graph. Note that this
+is only appropriate when the number of features is considerably greater
+than the number of cells in all modalities. If this is not the case, please use
+\code{\link{BuildSNNGraphLaplacians}} or any other method of graph
+construction that does not rely on the Euclidean distance and store the graph Laplacians for
+each modality as a list in the \code{graph.laplacian.list} slot.
+}
+\examples{
+SimSickleJrSmall<-BuildKNNGraphLaplacians(SimSickleJrSmall)
 }
