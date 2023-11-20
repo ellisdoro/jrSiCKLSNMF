@@ -1,0 +1,46 @@
+AddSickleJrMetadata     Add metadata to an object of class SickleJr
+BuildKNNGraphLaplacians
+                        Build KNN graphs and generate their graph
+                        Laplacians
+BuildSNNGraphLaplacians
+                        Build SNN graphs and generate their graph
+                        Laplacians
+CalculateUMAPSickleJr   Calculate the UMAP for an object of class
+                        SickleJr
+ClusterSickleJr         Cluster the \mathbf{H} matrix
+CreateSickleJr          Create an object of class SickleJr
+DetermineClusters       Perform clustering diagnostics
+DetermineDFromIRLBA     Create elbow plots of the singular values
+                        derived from IRLBA to determine D for large
+                        datasets
+GenerateWmatricesandHmatrix
+                        Initialize the \mathbf{W} matrices in each
+                        modality and the shared \mathbf{H} matrix
+MinibatchDiagnosticPlot
+                        Plot a diagnostic plot for the mini-batch
+                        algorithm
+NormalizeCountMatrices
+                        Normalize the count matrices and set whether to
+                        use the Poisson KL divergence or the Frobenius
+                        norm
+PlotLossvsLatentFactors
+                        Create plots to help determine the number of
+                        latent factors
+PlotSickleJrUMAP        Generate UMAP plots for an object of class
+                        SickleJr
+RunjrSiCKLSNMF          Run jrSiCKLSNMF on an object of class SickleJr
+SetLambdasandRowReg     Set lambda values and type of row
+                        regularization for an object of class SickleJr
+SetWandHfromWHinitials
+                        Set \mathbf{W} matrices and \mathbf{H} matrix
+                        from pre-calculated values
+SickleJr-class          The SickleJr class
+SimData                 A simulated dataset for use with jrSiCKLSNMF
+SimSickleJrSmall        A small SickleJr object containing a subset of
+                        data from the SimData data object. Contains the
+                        completed analysis from the 'Getting Started'
+                        vignette for a small subset of 10 cells with
+                        150 genes and 700 peaks. The clusters derived
+                        from this dataset are not accurate; this
+                        dataset is intended for use with code examples.
+jrSiCKLSNMF             Run jrSiCKLSNMF outside of a SickleJr object

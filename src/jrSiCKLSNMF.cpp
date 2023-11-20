@@ -48,17 +48,29 @@ double lossmatcalc(const arma::sp_mat& datamat, const arma::mat& W,
     arma::mat tmpWH=WH;
     arma::mat tmpWHlog=tmpWH.transform([](double val){
       return std::max(val,1e-16);});
-    arma::mat xtmp(datamat);
-    xtmp=xtmp.transform([](double val){return std::max(val,1e-16);});
-    lik=lik+arma::as_scalar(arma::accu(datamat%log(xtmp)))-arma::as_scalar(arma::accu(datamat%log(tmpWHlog)))-
+    arma::sp_mat logxtmp(datamat);
+    logxtmp.for_each([](arma::sp_mat::elem_type& val){val=log(val);});
+    lik=lik+arma::as_scalar(arma::accu(datamat%logxtmp))-arma::as_scalar(arma::accu(datamat%log(tmpWHlog)))-
       arma::as_scalar(arma::accu(datamat))+arma::as_scalar(arma::accu(tmpWH));
   } else if (diffFunc=="fr"){
     arma::mat tmp=datamat-WH;
     arma::mat tmpt=trans(tmp);
     double frobnorm2=arma::as_scalar(arma::accu(tmp*tmpt));
     lik=lik+0.5*frobnorm2;
-  } else{
-    perror("Please enter 'klp' for the Kullback-Leibler divergence for count data or 'fr' for the Frobenius norm loss");
+  } else if (diffFunc=="is"){
+    arma::mat tmpWH=WH;
+    tmpWH=tmpWH.transform([](double val){
+      return std::max(val,1e-16);});
+    arma::mat invtmpWH=tmpWH.transform([](double val){
+      return 1/val;});
+    arma::mat xtmp(datamat);
+    xtmp=xtmp.transform([](double val){
+      return std::max(val,1e-16);});
+    lik=lik+arma::as_scalar(arma::accu(datamat%invtmpWH+1))-
+      arma::as_scalar(arma::accu(log(xtmp)))+
+      arma::as_scalar(arma::accu(log(tmpWH)));
+  }else{
+    perror("Please enter 'klp' for the Kullback-Leibler divergence for count data, 'is' for the Itakura-Saito divergence, or 'fr' for the Frobenius norm loss");
     return -1;
   }
   if(lambdaW>0){
@@ -170,6 +182,15 @@ void perviewNMFMUR(const arma::field<arma::sp_mat>& datamatF, arma::field<arma::
         regnumerH=regFunc(IdenomH,H,Hconstraint);
         regdenomH=regFunc(InumerH,H,Hconstraint);
       }
+    } else if(diffFunc=="is"){
+      arma::mat WHinv=WF[i]*H.t();
+      WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
+      WHinv=WHinv.transform([](double val){return 1/val;});
+      arma::mat WHinv2=WHinv;
+      WHinv2=WHinv.transform([](double val){return pow(val,2);});
+      arma::sp_mat XWHinv2(datamatF[i]%WHinv2);
+      InumerH=XWHinv2.t()*WF[i];
+      IdenomH=WHinv.t()*WF[i];
     }
     numerH=numerH+InumerH+regnumerH;
     denomH=denomH+IdenomH+regdenomH;
@@ -207,6 +228,15 @@ void perviewNMFMUR(const arma::field<arma::sp_mat>& datamatF, arma::field<arma::
       arma::mat XWHinv(datamatF[i]%WHinv);
       numerW=numerW+XWHinv*H;
       denomW=denomW+repmat(sum(H),WF[i].n_rows,1);
+    }else if(diffFunc=="is"){
+      arma::mat WHinv=WF[i]*H.t();
+      WHinv=WHinv.transform([](double val){return std::max(val,1e-16);});
+      WHinv=WHinv.transform([](double val){return 1/val;});
+      arma::mat WHinv2=WHinv;
+      WHinv2=WHinv2.transform([](double val){return pow(val,2);});
+      arma::mat XWHinv2(datamatF[i]%WHinv2);
+      numerW=numerW+XWHinv2*H;
+      denomW=denomW+WHinv*H;
     }
     if(lambdaWV[i]>0){
       denomW=denomW+0.5*lambdaWV[i]*(DF[i]*WF[i]+DF[i].t()*WF[i]);
