@@ -1,10 +1,11 @@
 # jrSiCKLSNMF
-This package contains code to run joint graph-regularized single-cell Kullback-Leibler Non-negative Matrix Factorization
+This package contains code to run joint graph-regularized single-cell Kullback-Leibler Non-negative Matrix Factorization.
+
+Please use the R package available on CRAN as this is an experimental version:
 
 To install:
 ```{r package}
-install.packages("devtools")
-devtools::install_github("ellisdoro/jrSiCKLSNMF")
+install.packages("jrSiCKLSNMF")
 ```
 
 <!-- badges: start -->
