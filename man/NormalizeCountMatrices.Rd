@@ -3,16 +3,17 @@
 \name{NormalizeCountMatrices}
 \alias{NormalizeCountMatrices}
 \title{Normalize the count matrices and set whether to use the Poisson KL divergence
-or the Frobenius norm}
+or the Frobenius norm within each modality}
 \usage{
 NormalizeCountMatrices(SickleJr, diffFunc = "klp", scaleFactor = NULL)
 }
 \arguments{
 \item{SickleJr}{An object of class SickleJr}
 
-\item{diffFunc}{A string set to "klp" when using the Poisson KL divergence
-or to "fr" when using the Frobenius norm: default is KL divergence; this also determines
-the type of normalization}
+\item{diffFunc}{A vector of strings that determines the statistical "distance"
+to use within each modality; set to "klp" when using the Poisson KL divergence
+or to "fr" when using the Frobenius norm: default is KL divergence for all
+modalities; this also determines the type of normalization}
 
 \item{scaleFactor}{A single numeric value (if using the same scale factor for each modality)
 or a list of numeric values to use (if using different scale factors in different modalities)

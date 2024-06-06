@@ -43,6 +43,6 @@ SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,3)
 SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="louvain",neighbors=5)
 SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="spectral",neighbors=5,numclusts=3)
 #DO NOT DO THIS FOR REAL DATA; this is just to illustrate max clustering
-SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,rowReg="L2Norm")
+SimSickleJrSmall<-SetLambdasandRegs(SimSickleJrSmall,HrowReg="L2Norm")
 SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="max")
 }

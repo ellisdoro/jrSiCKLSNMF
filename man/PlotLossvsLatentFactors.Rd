@@ -16,9 +16,10 @@ PlotLossvsLatentFactors(
   random = FALSE,
   random_W_updates = FALSE,
   seed = NULL,
-  batchsize = -1,
+  batchsize = dim(SickleJr@count.matrices[[1]])[2],
   lossonsubset = FALSE,
-  losssubsetsize = dim(SickleJr@count.matrices[[1]])[2]
+  losssubsetsize = dim(SickleJr@count.matrices[[1]])[2],
+  numthreads = 1
 )
 }
 \arguments{
@@ -53,6 +54,8 @@ penultimate subset of \eqn{\mathbf{H}}; otherwise updates \eqn{\mathbf{W}^v} aft
 \item{lossonsubset}{Boolean indicating whether to calculate the loss on a subset rather than the full dataset; speeds up computation for larger datasets}
 
 \item{losssubsetsize}{Number of cells to use for the loss subset; default is total number of cells}
+
+\item{numthreads}{Number of threads to use if running in parallel}
 }
 \value{
 An object of class SickleJr with a list of initialized \eqn{\mathbf{W}^v} matrices and an \eqn{\mathbf{H}} matrix

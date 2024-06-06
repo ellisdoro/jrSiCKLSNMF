@@ -46,7 +46,7 @@ NULL
 #' \item{graph.laplacian.list}{A list of sparse matrices containing the graph
 #' Laplacians corresponding to the KNN feature-feature similarity graphs constructed
 #' for each omics modality}
-#' \item{rowRegularization}{A string indicating the row regularization: here it
+#' \item{Hregularization}{A string indicating the row regularization: here it
 #' is set to \code{"None"}}
 #' \item{diffFunc}{A string specifying the function to measure the discrepancy
 #' between the normalized data and the fitted matrices: here, it is set to "klp"

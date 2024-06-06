@@ -52,8 +52,8 @@ for the desired number of random initializations and picks the \eqn{\mathbf{W}^v
 the lowest achieved loss
 }
 \examples{
-SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
-lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+SimSickleJrSmall<-SetLambdasandRegs(SimSickleJrSmall,
+lambdaWlist=list(10,50),lambdaH=500,HrowReg="None",WcolReg="None")
 SimSickleJrSmall<-GenerateWmatricesandHmatrix(SimSickleJrSmall,d=5,usesvd=TRUE)
 
 }

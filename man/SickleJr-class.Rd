@@ -25,12 +25,16 @@ only include features that appear in at a minimum 10 cells.}
 
 \item{\code{graph.laplacian.list}}{A list of the graph Laplacians to be used for graph regularization}
 
-\item{\code{rowRegularization}}{A string that indicates the type of row regularization to
-use. Types include "None" and "L2Norm"}
+\item{\code{Hregularization}}{A string that indicates the type of row regularization to
+use for H. Types include "None," "L2Norm," and "Ortho"}
 
-\item{\code{diffFunc}}{A string that holds the name of the function used to measure the "distance" between
+\item{\code{Wregularization}}{A string that indicates the type of column regularization to
+use for H. Types include "None," "L2Norm," and "Ortho"}
+
+\item{\code{diffFunc}}{A vector of strings that holds the name of the function used to measure the "distance" between
 data matrix X and WH for each modality; can be \code{"klp"} for the Poisson Kullback-Leibler divergence
-or \code{"fr"} for the Frobenius norm}
+or \code{"fr"} for the Frobenius norm. If the length of the vector differs from the number of modalities,
+only the first string is used}
 
 \item{\code{lambdaWlist}}{A list of lambda values to use as the hyperparameters for the
 corresponding \eqn{\mathbf{W}^v} in the \eqn{v^{\text{th}}} modality}
@@ -39,7 +43,7 @@ corresponding \eqn{\mathbf{W}^v} in the \eqn{v^{\text{th}}} modality}
 
 \item{\code{Wlist}}{A list of the generated \eqn{\mathbf{W}^v} matrices, one for each modality}
 
-\item{\code{H}}{The shared \eqn{\mathbf{H}} matrix}
+\item{\code{H}}{The transpose of the shared \eqn{\mathbf{H}} matrix.}
 
 \item{\code{WHinitials}}{A list that if, when using \code{\link{PlotLossvsLatentFactors}}, all of the cells are used to calculate
 the initial values, stores these initial generated matrices; can be used

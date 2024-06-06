@@ -10,16 +10,19 @@ NULL
 #' only include features that appear in at a minimum 10 cells.
 #' @slot normalized.count.matrices A list that holds the normalized count matrices
 #' @slot graph.laplacian.list A list of the graph Laplacians to be used for graph regularization
-#' @slot rowRegularization A string that indicates the type of row regularization to
-#' use. Types include "None" and "L2Norm"
-#' @slot diffFunc A string that holds the name of the function used to measure the "distance" between
+#' @slot Hregularization A string that indicates the type of row regularization to
+#' use for H. Types include "None," "L2Norm," and "Ortho"
+#' @slot Wregularization A string that indicates the type of column regularization to
+#' use for H. Types include "None," "L2Norm," and "Ortho"
+#' @slot diffFunc A vector of strings that holds the name of the function used to measure the "distance" between
 #' data matrix X and WH for each modality; can be \code{"klp"} for the Poisson Kullback-Leibler divergence
-#' or \code{"fr"} for the Frobenius norm
+#' or \code{"fr"} for the Frobenius norm. If the length of the vector differs from the number of modalities,
+#' only the first string is used
 #' @slot lambdaWlist A list of lambda values to use as the hyperparameters for the
 #' corresponding \eqn{\mathbf{W}^v} in the \eqn{v^{\text{th}}} modality
 #' @slot lambdaH A numeric value corresponding to the hyperparameter of the sparsity constraint on \eqn{\mathbf{H}}
 #' @slot Wlist A list of the generated \eqn{\mathbf{W}^v} matrices, one for each modality
-#' @slot H The shared \eqn{\mathbf{H}} matrix
+#' @slot H The transpose of the shared \eqn{\mathbf{H}} matrix.
 #' @slot WHinitials A list that if, when using \code{\link{PlotLossvsLatentFactors}}, all of the cells are used to calculate
 #' the initial values, stores these initial generated matrices; can be used
 #' as initializations when running \code{\link{RunjrSiCKLSNMF}} to save time
@@ -41,8 +44,9 @@ SickleJr<-methods::setClass(
     count.matrices="list",
     normalized.count.matrices="list",
     graph.laplacian.list="list",
-    rowRegularization="character",
-    diffFunc="character",
+    Hregularization="character",
+    Wregularization="character",
+    diffFunc="vector",
     lambdaWlist="list",
     lambdaH="numeric",
     Wlist="list",
@@ -103,16 +107,17 @@ CreateSickleJr<-function(count.matrices,names=NULL){
 #' SimSickleJrSmall<-BuildKNNGraphLaplacians(SimSickleJrSmall)
 #'@export
 BuildKNNGraphLaplacians<-function(SickleJr,k=20){
-    counts<-SickleJr@count.matrices
-    SickleJr@graph.laplacian.list<-lapply(counts,function(x){
+  counts<-SickleJr@count.matrices
+  SickleJr@graph.laplacian.list<-lapply(counts,function(x){
     laplacian_matrix(scran::buildKNNGraph(x,transposed=TRUE,k=k))})
   return(SickleJr)
 }
 
 #' @title Build SNN graphs and generate their graph Laplacians
 #' @description Generate graph Laplacians for graph regularization of
-#' jrSiCKLSNMF from the list of raw count matrices using an SNN graph. SNN is more robust to
-#' situations where the number of cells outnumbers the number of features.
+#' jrSiCKLSNMF from the list of raw count matrices using an SNN graph. SNN is
+#' more robust to situations where the number of cells outnumbers the number of
+#' features.
 #' @name BuildSNNGraphLaplacians
 #' @param SickleJr An object of class SickleJr
 #' @param k Number of KNN neighbors to calculate SNN graph; defaults to 20
@@ -121,94 +126,107 @@ BuildKNNGraphLaplacians<-function(SickleJr,k=20){
 #' @examples
 #' SimSickleJrSmall<-BuildSNNGraphLaplacians(SimSickleJrSmall)
 #'@export
-BuildSNNGraphLaplacians<-function(SickleJr,k=20){
-    counts<-SickleJr@count.matrices
-    SickleJr@graph.laplacian.list<-lapply(counts,function(x){
-    laplacian_matrix(scran::buildSNNGraph(x,transposed=TRUE,k=k))})
+BuildSNNGraphLaplacians<-function(SickleJr, k=20){
+  counts<-SickleJr@count.matrices
+  SickleJr@graph.laplacian.list<-lapply(counts, function(x){
+    laplacian_matrix(scran::buildSNNGraph(x, transposed=TRUE,k=k))})
   return(SickleJr)
 }
 
-
-
-#' @title Normalize the count matrices and set whether to use the Poisson KL divergence
-#' or the Frobenius norm
+#' @title Normalize the count matrices and set whether to use the Poisson KL
+#' divergence or the Frobenius norm within each modality
 #' @description Normalize the count data within each modality. The default
 #' normalization, which should be used when using the KL divergence, is median
 #' library size normalization. To perform median library size normalization,
-#' each count within a cell is divided by its library size (i.e. the counts within a column are divided by the
-#' column sum). Then, all values are multiplied by the median library size
-#' (i.e. the median column sum). To use the Frobenius norm, set \code{frob=TRUE} to log\eqn{(x+1)}
-#' normalize your count data and use a desired \code{scaleFactor}.
-#' You may also use a different form of normalization and store these results
-#' in the \code{normalized.count.matrices} slot.
+#' each count within a cell is divided by its library size (i.e. the counts
+#' within a column are divided by the column sum). Then, all values are
+#' multiplied by the median library size (i.e. the median column sum). To use
+#' the Frobenius norm, set \code{frob=TRUE} to log\eqn{(x+1)} normalize your
+#' count data and use a desired \code{scaleFactor}. You may also use a
+#' different form of normalization and store these results in the
+#' \code{normalized.count.matrices} slot.
 #' @name NormalizeCountMatrices
 #' @param SickleJr An object of class SickleJr
-#' @param diffFunc A string set to "klp" when using the Poisson KL divergence
-#'or to "fr" when using the Frobenius norm: default is KL divergence; this also determines
-#'the type of normalization
-#' @param scaleFactor A single numeric value (if using the same scale factor for each modality)
-#' or a list of numeric values to use (if using different scale factors in different modalities)
-#' as scale factors for the log\eqn{(x+1)} normalization when \code{diffFunc="fr"}
-#' @returns An object of class SickleJr with a list of sparse, normalized data matrices added to its \code{normalized.count.matrices} slot
+#' @param diffFunc A vector of strings that determines the statistical
+#' "distance" to use within each modality; set to "klp" when using the Poisson
+#' KL divergence or to "fr" when using the Frobenius norm: default is KL
+#' divergence for all modalities; this also determines the type of normalization
+#' @param scaleFactor A single numeric value (if using the same scale factor
+#' for each modality)
+#' or a list of numeric values to use (if using different scale factors in
+#' different modalities)
+#' as scale factors for the log\eqn{(x+1)} normalization when
+#' \code{diffFunc="fr"}
+#' @returns An object of class SickleJr with a list of sparse, normalized data
+#' matrices added to its \code{normalized.count.matrices} slot
 #' @examples
 #' SimSickleJrSmall<-NormalizeCountMatrices(SimSickleJrSmall)
-#' SimSickleJrSmall<-NormalizeCountMatrices(SimSickleJrSmall, diffFunc="fr",scaleFactor=1e6)
+#' SimSickleJrSmall<-NormalizeCountMatrices(SimSickleJrSmall,
+#'                                          diffFunc="fr",scaleFactor=1e6)
 #'@export
 
 NormalizeCountMatrices<-function(SickleJr,diffFunc="klp",scaleFactor=NULL){
+  if(length(diffFunc)!=length(SickleJr@count.matrices)){
+    warning(paste0("\nThe number of specified statistical distances",
+                   " does not match the number of modalities. Setting all to",
+                   " the first statistical distance: ",diffFunc[1]),".\n")
+    diffFunc<-rep(diffFunc[1],length(SickleJr@count.matrices))
+  }
   Xmatrixlist<-SickleJr@count.matrices
   SickleJr@diffFunc<-diffFunc
-  frob=FALSE
-  if(diffFunc=="fr"){
-    frob=TRUE
-  }
-  NormalizedXmatrices<-Xmatrixlist
-  medianlibsize<-list()
   scaleFactorlist<-list()
-  if(!frob){
-    medianlibsize<-lapply(Xmatrixlist,function(x) {median(unlist(
-      lapply(.listCols(x),function(y) sum(y))))})
-    for(i in 1:length(Xmatrixlist)){
-      normalizeXmatrixlist<-.listCols(Xmatrixlist[[i]])
-      normalizeXmatrixlist<-lapply(normalizeXmatrixlist,function(x){x/sum(x)*medianlibsize[[i]]})
-      NormalizedXmatrices[[i]]@x<-unlist(normalizeXmatrixlist)
-    }
-  } else{
-    if(is.list(scaleFactor)){
-      if(length(scaleFactor)==length(Xmatrixlist)){
-        scaleFactorlist=scaleFactor
-      } else{
-        if(length(scaleFactor)==1){
-          warning(paste0("\n List contains only 1 scale factor. Setting all scale factors to ",scaleFactor[[1]],".\n"))
-          for(i in 1:length(Xmatrixlist)){
-            scaleFactorlist[[i]]=scaleFactor[[1]]
-          }
-        } else{
-          stop("\n Length of scale factor list not equal to number of assays\n")
-        }
-      }
-    } else if(is.null(scaleFactor)){
-      warning("\n No scale factor given. Setting to 1e6 \n")
-      for(i in 1:length(Xmatrixlist)){
-        scaleFactorlist[[i]]=1e6
-      }
-    } else if (is.numeric(scaleFactor)){
-      warning(paste0("\n Only one scale factor specified. Setting all to ",scaleFactor,".\n"))
-      for(i in 1:length(Xmatrixlist)){
-        scaleFactorlist[[i]]=scaleFactor
-      }
+  if(is.list(scaleFactor)){
+    if(length(scaleFactor)==length(Xmatrixlist)){
+      scaleFactorlist=scaleFactor
+      names(scaleFactorlist)=names(Xmatrixlist)
     } else{
-      stop("\n Scale factor is not numeric or a list of proper length.\n")
+      if(length(scaleFactor)==1){
+        warning(paste0("\n List contains only 1 scale factor.",
+                       " Setting all scale factors to ",scaleFactor[[1]],".\n"))
+        scaleFactorlist<-lapply(Xmatrixlist,
+                                function(x) return(scaleFactor[[1]]))
+
+      } else{
+        stop("\nLength of scale factor list not equal to number of assays\n")
+      }
     }
-    for(i in 1:length(Xmatrixlist)){
-      normalizeXmatrixlist<-.listCols(Xmatrixlist[[i]])
-      scaleFactori=scaleFactorlist[[i]]
-      normalizeXmatrixlist<-lapply(normalizeXmatrixlist,function(x){x/sum(x)*scaleFactori})
-      normalizeXmatrixlist<-lapply(normalizeXmatrixlist,function(x){log(x+1)})
-      NormalizedXmatrices[[i]]@x<-unlist(normalizeXmatrixlist)
-    }
+  } else if(is.null(scaleFactor)&any(diffFunc=="fr")){
+    warning("\n No scale factor given. Setting to 1e6 \n")
+    scaleFactorlist<-lapply(Xmatrixlist,function(x) 1e6)
+  } else if (is.numeric(scaleFactor)){
+    warning(paste0("\n Only one scale factor specified. Setting all to ",
+                   scaleFactor,".\n"))
+    scaleFactorlist<-lapply(Xmatrixlist,function(x) scaleFactor)
   }
-  SickleJr@normalized.count.matrices<-NormalizedXmatrices
+  diffFunclist=as.list(diffFunc)
+  names(diffFunclist)=names(Xmatrixlist)
+  medianlibsize=lapply(Xmatrixlist,function(x){median(unlist(
+    lapply(.listCols(x),function(y) sum(y))))})
+  XmatrixlistDiffFunc<-list(MatrixList=Xmatrixlist,diffFunc=diffFunclist,
+                            medianlibsize=medianlibsize,
+                            scaleFactor=scaleFactorlist,
+                            NormalizedXmatrices=Xmatrixlist)
+  XmatrixlistDiffFunc<-list_transpose(XmatrixlistDiffFunc)
+  XmatrixlistDiffFunc<-lapply(XmatrixlistDiffFunc,function(x){
+    if(!(x[["diffFunc"]]%in%c("fr","klp","is"))){
+      stop(paste("Please choose the Poisson KL divergence ('klp')",
+                 "Frobenius norm ('fr'), or Itakura-Saito",
+                 "divergence ('is') "))
+    }
+    if(x[["diffFunc"]]!="fr"){
+      normalizedlist<-.listCols(x[["NormalizedXmatrices"]])
+      normalizedlist<-lapply(normalizedlist,function(y){y/sum(y)*x[["medianlibsize"]]})
+      x[["NormalizedXmatrices"]]@x<-unlist(normalizedlist)
+    }else{
+      normalizedlist<-.listCols(x[["NormalizedXmatrices"]])
+      normalizedlist<-lapply(normalizedlist,function(y){y/sum(y)*x[["scaleFactor"]]})
+      normalizedlist<-lapply(normalizedlist,function(y){log(y+1)})
+      x[["NormalizedXmatrices"]]@x<-unlist(normalizedlist)
+    }
+    return(x)
+  })
+  SickleJr@normalized.count.matrices<-lapply(XmatrixlistDiffFunc, function(x) x[["NormalizedXmatrices"]])
+
   return(SickleJr)
 }
 
@@ -216,25 +234,30 @@ NormalizeCountMatrices<-function(SickleJr,diffFunc="klp",scaleFactor=NULL){
 #' @title Set lambda values and type of row regularization for an object of class SickleJr
 #' @description Provide the values for the graph regularization \eqn{\lambda_{\textbf{W}^v}}
 #' for each modality as a list and provide a
-#' @name SetLambdasandRowReg
+#' @name SetLambdasandRegs
 #' @param SickleJr An object of class SickleJr
 #' @param lambdaWlist A list of graph regularization constraints for the \eqn{\mathbf{W}^v} matrices:
 #' defaults to 2 modalities with the RNA modality constraint equal to 10 and the ATAC modality constraint equal to 50
 #' @param lambdaH A numeric holding the sparsity constraint on \eqn{\mathbf{H}}: defaults to 500.
-#' @param rowReg A string that is equal to \code{"None"} for no constraints on the rows of \eqn{\mathbf{H}} and \code{"L2Norm"}
+#' @param HrowReg A string that is equal to \code{"None"} for no constraints on the rows of \eqn{\mathbf{H}},
+#' \code{"Ortho"} for orthogonality constraints on the rows of \eqn{\mathbf{H}}, and \code{"L2Norm"}
 #' to set the L2 norms of the rows of \eqn{\mathbf{H}} to be equal to 1: defaults to "None"
+#' @param WcolReg A string that is equal to \code{"None"} for no constraints on the columns of \eqn{\mathbf{W}},
+#' \code{"Ortho"} for orthogonality constraints on the columns of \eqn{\mathbf{W}}, and
+#' \code{"L2Norm"} to set the L2 norms of the columns of \eqn{\mathbf{W}} to be equal to 1: defaults to "None"
 #' @returns An object of class SickleJr with the lambda hyperparameter values added to its \code{lambdaWlist} and \code{lambdaH} slots
 #' @examples
-#' SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
-#' lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
-#' SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
-#' lambdaWlist=list(3,15),lambdaH=0,rowReg="L2Norm")
+#' SimSickleJrSmall<-SetLambdasandRegs(SimSickleJrSmall,
+#' lambdaWlist=list(10,50),lambdaH=500,HrowReg="None",WcolReg="None")
+#' SimSickleJrSmall<-SetLambdasandRegs(SimSickleJrSmall,
+#' lambdaWlist=list(3,15),lambdaH=0,HrowReg="L2Norm",WcolReg="None")
 #' @export
 #'
-SetLambdasandRowReg<-function(SickleJr,lambdaWlist=list(10,50),lambdaH=500,rowReg="None"){
+SetLambdasandRegs<-function(SickleJr,lambdaWlist=list(10,50),lambdaH=500,HrowReg="None",WcolReg="None"){
   SickleJr@lambdaWlist<-lambdaWlist
   SickleJr@lambdaH<-lambdaH
-  SickleJr@rowRegularization<-rowReg
+  SickleJr@Hregularization<-HrowReg
+  SickleJr@Wregularization<-WcolReg
   return(SickleJr)
 }
 
@@ -261,8 +284,8 @@ SetLambdasandRowReg<-function(SickleJr,lambdaWlist=list(10,50),lambdaH=500,rowRe
 #' @returns SickleJr An object of class SickleJr with the \eqn{\mathbf{W}^v} matrices and \eqn{\mathbf{H}} matrix added.
 #' @export
 #' @examples
-#' SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,
-#' lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+#' SimSickleJrSmall<-SetLambdasandRegs(SimSickleJrSmall,
+#' lambdaWlist=list(10,50),lambdaH=500,HrowReg="None",WcolReg="None")
 #' SimSickleJrSmall<-GenerateWmatricesandHmatrix(SimSickleJrSmall,d=5,usesvd=TRUE)
 #'
 GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
@@ -276,22 +299,28 @@ GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
       NormalizedXmatrices[[i]]<-SickleJr@normalized.count.matrices[[i]][,subsample]
     }
   }
-  rowReg=SickleJr@rowRegularization
-
+  HrowReg=SickleJr@Hregularization
+  WcolReg=SickleJr@Wregularization
   if(!random){
     svdlist<-lapply(NormalizedXmatrices,function(x) .nndsvd(A=x,k=d,flag=1,svd=usesvd))
-    WandMeanlist<-lapply(svdlist,function(x) list(W=x$W,meanW=mean(apply(x$W,2,function(y) sum(y)))))
-    SickleJr@Wlist<-lapply(WandMeanlist,function(x) apply(x$W,2,function(y) y/sum(y))*x$meanW)
+    WandMeanlist<-lapply(svdlist,function(x) list(W=x$W,meanW=mean(apply(x$W,2,function(y) sum(y))),normW=apply(x$W,2,function(z) sqrt(sum(z^2)))))
+    if(WcolReg=="L2Norm"){
+      SickleJr@Wlist<-lapply(WandMeanlist,function(x) {newW=x$W
+      for(i in 1:dim(x$W)[2]){
+        newW[,i]=newW[,i]/x$normW[i]
+      }
+      return(newW)})
+    }else{
+      SickleJr@Wlist<-lapply(WandMeanlist,function(x) apply(x$W,2,function(y) y/sum(y))*x$meanW)
+    }
     bigXmatrix<-do.call(rbind,NormalizedXmatrices)
     svdH<-.nndsvd(A=bigXmatrix,k=d,flag=1,svd=usesvd)
     Hconcatmat<-t(svdH$H)
-    if(rowReg=="L2Norm"){
+    if(HrowReg=="L2Norm"){
       norms<-apply(Hconcatmat,2,function(x)sqrt(sum(x^2)))
-      for(i in 1:dim(Hconcatmat)[[2]]){
+      for(i in 1:dim(Hconcatmat)[2]){
         Hconcatmat[,i]=Hconcatmat[,i]/norms[i]
       }
-    } else if(rowReg=="L1Norm"){
-      Hconcatmat<-apply(Hconcatmat,2,function(x)x/sum(x))
     } else{
       meanHconcat<-mean(apply(Hconcatmat,2,function(x) sum(x)))
       Hconcatmat<-apply(Hconcatmat,2,function(x) x/sum(x))*meanHconcat
@@ -301,46 +330,46 @@ GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
     output<-rep(0,numberReps)
     for(i in 1:numberReps){
 
-    set.seed(seed+i)
-    Unormvals<-lapply(NormalizedXmatrices,
-                      function(x) {list(normvals=median(unlist(.listCols(x))),
-                      dimW=dim(x)[1])})
-    Hvals<-mean(unlist(lapply(Unormvals,function(x) x$normvals)))
-    Wvals<-lapply(Unormvals,function(x) {x$normvals<-x$normvals/(Hvals*sqrt(d))
-                                          return(x)})
-    Hvals<-Hvals/sqrt(d)
-    Hdim<-dim(NormalizedXmatrices[[1]])[2]
-    Wnew<-lapply(Wvals,function(x) matrix(runif(d*x$dimW,min=0,max=x$normvals),nrow = x$dimW,ncol=d))
-    Hconcatmat<-matrix(runif(Hdim*d,min=0,max=Hvals),nrow=Hdim,ncol=d)
-    if(rowReg=="L2Norm"){
-      norms<-apply(Hconcatmat,2,function(x)sqrt(sum(x^2)))
-      for(i in 1:dim(Hconcatmat)[[2]]){
-        Hconcatmat[,i]=Hconcatmat[,i]/norms[i]
+      set.seed(seed+i)
+      Unormvals<-lapply(NormalizedXmatrices,
+                        function(x) {list(normvals=median(unlist(.listCols(x))),
+                                          dimW=dim(x)[1])})
+      Hvals<-mean(unlist(lapply(Unormvals,function(x) x$normvals)))
+      Wvals<-lapply(Unormvals,function(x) {x$normvals<-x$normvals/(Hvals*sqrt(d))
+      return(x)})
+      Hvals<-Hvals/sqrt(d)
+      Hdim<-dim(NormalizedXmatrices[[1]])[2]
+      Wnew<-lapply(Wvals,function(x) matrix(runif(d*x$dimW,min=0,max=x$normvals),nrow = x$dimW,ncol=d))
+      Hconcatmat<-matrix(runif(Hdim*d,min=0,max=Hvals),nrow=Hdim,ncol=d)
+      if(HrowReg=="L2Norm"){
+        norms<-apply(Hconcatmat,2,function(x)sqrt(sum(x^2)))
+        for(i in 1:dim(Hconcatmat)[[2]]){
+          Hconcatmat[,i]=Hconcatmat[,i]/norms[i]
+        }
+      } else if(HrowReg=="L1Norm"){
+        Hconcatmat<-apply(Hconcatmat,2,function(x)x/sum(x))
+      } else{
+        meanHconcat<-mean(apply(Hconcatmat,2,function(x) sum(x)))
+        Hconcatmat<-apply(Hconcatmat,2,function(x) x/sum(x))*meanHconcat
       }
-    } else if(rowReg=="L1Norm"){
-      Hconcatmat<-apply(Hconcatmat,2,function(x)x/sum(x))
-    } else{
-      meanHconcat<-mean(apply(Hconcatmat,2,function(x) sum(x)))
-      Hconcatmat<-apply(Hconcatmat,2,function(x) x/sum(x))*meanHconcat
-    }
-    if(i==1){
-      old.W=copy(Wnew)
-      old.H=copy(Hconcatmat)
-    }
-    SickleJr@H<-Hconcatmat
-    SickleJr@Wlist<-Wnew
-    rm(Hconcatmat)
-    rm(Wnew)
-    SickleJr<-RunjrSiCKLSNMF(SickleJr,rounds=5,minibatch=minibatch,random_W_updates=random_W_updates,
-                   batchsize=batchsize,seed=seed,display_progress = FALSE,suppress_warnings = TRUE)
-    output[i]=tail(SickleJr@loss$Loss,1)
-    if(which.min(output[which(output>0)])!=i){
-      SickleJr@H<-copy(old.H)
-      SickleJr@Wlist=copy(old.W)
-    }else{
-      old.H=copy(SickleJr@H)
-      old.W=copy(SickleJr@Wlist)
-    }
+      if(i==1){
+        old.W=copy(Wnew)
+        old.H=copy(Hconcatmat)
+      }
+      SickleJr@H<-Hconcatmat
+      SickleJr@Wlist<-Wnew
+      rm(Hconcatmat)
+      rm(Wnew)
+      SickleJr<-RunjrSiCKLSNMF(SickleJr,rounds=5,minibatch=minibatch,random_W_updates=random_W_updates,
+                               batchsize=batchsize,seed=seed,display_progress = FALSE,suppress_warnings = TRUE)
+      output[i]=tail(SickleJr@loss$Loss,1)
+      if(which.min(output[which(output>0)])!=i){
+        SickleJr@H<-copy(old.H)
+        SickleJr@Wlist=copy(old.W)
+      }else{
+        old.H=copy(SickleJr@H)
+        old.W=copy(SickleJr@Wlist)
+      }
     }
   }
   return(SickleJr)
@@ -371,6 +400,7 @@ GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
 #' @param batchsize Desired batch size; do not use if using a subsample
 #' @param lossonsubset Boolean indicating whether to calculate the loss on a subset rather than the full dataset; speeds up computation for larger datasets
 #' @param losssubsetsize Number of cells to use for the loss subset; default is total number of cells
+#' @param numthreads Number of threads to use if running in parallel
 #' @returns An object of class SickleJr with a list of initialized \eqn{\mathbf{W}^v} matrices and an \eqn{\mathbf{H}} matrix
 #' for each latent factor \eqn{d\in\{1,...,D\}} added to the \code{WHinitials} slot, a data frame holding relevant
 #' values for plotting the elbow plot added to the \code{latent.factor.elbow.values} slot, diagnostic plots of the loss vs. the number of latent factors added to the \code{plots}
@@ -382,13 +412,13 @@ GenerateWmatricesandHmatrix<-function(SickleJr,d=10,random=FALSE,
 
 PlotLossvsLatentFactors<-function(SickleJr,rounds=100,differr=1e-4,d_vector=c(2:20),
                                   parallel=FALSE,nCores=detectCores()-1,subsampsize=NULL,
-                                  minibatch=FALSE,random=FALSE,random_W_updates=FALSE,seed=NULL,batchsize=-1,
-                                  lossonsubset=FALSE,losssubsetsize=dim(SickleJr@count.matrices[[1]])[2]){
+                                  minibatch=FALSE,random=FALSE,random_W_updates=FALSE,seed=NULL,batchsize=dim(SickleJr@count.matrices[[1]])[2],
+                                  lossonsubset=FALSE,losssubsetsize=dim(SickleJr@count.matrices[[1]])[2],numthreads=1){
   latentfactors<-SickleJr@latent.factor.elbow.values$latent_factor_number
   if(any(latentfactors%in%d_vector)){
     alreadycalced<-dput(latentfactors[which(latentfactors%in%d_vector)])
-      print(paste(alreadycalced,
-            "has already been calculated. Skipping calculation for this value"))
+    print(paste(alreadycalced,
+                "has already been calculated. Skipping calculation for this value"))
     d_vector<-d_vector[-which(d_vector%in%latentfactors)]
     emptyvec<-is_empty(d_vector)
     if(emptyvec){
@@ -435,9 +465,9 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=100,differr=1e-4,d_vector=c(2:
     warning("\n Random W updates are only appropriate for minibatch algorithms. Setting random_W_updates to FALSE.\n" )
     random_W_updates=FALSE
   }
-  if(batchsize>dim(SickleJr@count.matrices[[1]])[2]){
+  if(batchsize>=dim(SickleJr@count.matrices[[1]])[2]){
     warning("\n Batch size larger than number of cells. Will not use the minibatch algorithm \n")
-    batchsize=-1
+    batchsize=dim(SickleJr@count.matrices[[1]])[2]
     minibatch=FALSE
   }
   AdjL=lapply(SickleJr@graph.laplacian.list,function(x) {x@x[which(x@x>0)]=0
@@ -460,7 +490,7 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=100,differr=1e-4,d_vector=c(2:
   lossvals<-NULL
   if(!parallel){
     cl=NULL} else{
-      cl<<-makeCluster(nCores)
+      cl<-makeCluster(nCores)
       clusterExport(cl,varlist=c("SickleJr","d_vector","random","samp","AdjL","DL","differr","rounds","initsamp","SickleJrSub"),envir = environment())
       clusterEvalQ(cl,library("jrSiCKLSNMF"))
     }
@@ -469,37 +499,39 @@ PlotLossvsLatentFactors<-function(SickleJr,rounds=100,differr=1e-4,d_vector=c(2:
   list(d=x,Wlist=newvals@Wlist,H=newvals@H)},cl=cl)
   message("\n Running jrSiCKLSNMF... \n")
   lossvals<-pblapply(X=WHinitials,FUN=function(x){
-      vals<-jrSiCKLSNMF(datamatL=SickleJrSub,
+    vals<-jrSiCKLSNMF(datamatL=SickleJrSub,
                       WL=x[["Wlist"]],
                       H=x[["H"]],
                       AdjL=AdjL,
                       DL=DL,
                       lambdaWL=SickleJr@lambdaWlist,
                       lambdaH=SickleJr@lambdaH,
-                      Hconstraint = toString(SickleJr@rowRegularization),
+                      Hconstraint = toString(SickleJr@Hregularization),
+                      Wconstraint=toString(SickleJr@Wregularization),
                       differr=differr,
                       display_progress=FALSE,
                       rounds=rounds,
-                      diffFunc = toString(SickleJr@diffFunc),
+                      diffFunc = SickleJr@diffFunc,
                       minrounds=rounds,
                       suppress_warnings=TRUE,
-                      initsamp = 1:dim(SickleJrSub[[1]])[2])
+                      initsamp = 1:dim(SickleJrSub[[1]])[2],
+                      numthreads=1)
     return(vals[length(vals)])},cl=cl)
-   if(parallel) {
-     stopCluster(cl)
-   }
-    newlikelihoodvalues<-NULL
-    for(i in 1:length(lossvals)){
-      newlikelihoodvalues<-rbind(newlikelihoodvalues,min(lossvals[[i]]$Loss))
-    }
-    oldvals<-SickleJr@latent.factor.elbow.values
-    SickleJr@latent.factor.elbow.values<-rbind(oldvals,data.frame(latent_factor_number=d_vector,Loss=newlikelihoodvalues))
-    elbowvals=SickleJr@latent.factor.elbow.values
-    plotvals<-ggplot(elbowvals,aes(x=latent_factor_number,y=Loss))+geom_line()+geom_point()+theme_bw()+ggtitle(paste0("Plot of Number of Latent Factors vs Loss after ",rounds," Iterations"))+xlab("Number of Latent Factors")
-    print(plotvals)
-    SickleJr@plots[["LossvsLatentFactors"]]<-plotvals
-    SickleJr@WHinitials<-WHinitials
-    SickleJr@lossCalcSubsample<-samp
+  if(parallel) {
+    stopCluster(cl)
+  }
+  newlikelihoodvalues<-NULL
+  for(i in 1:length(lossvals)){
+    newlikelihoodvalues<-rbind(newlikelihoodvalues,min(lossvals[[i]]$Loss))
+  }
+  oldvals<-SickleJr@latent.factor.elbow.values
+  SickleJr@latent.factor.elbow.values<-rbind(oldvals,data.frame(latent_factor_number=d_vector,Loss=newlikelihoodvalues))
+  elbowvals=SickleJr@latent.factor.elbow.values
+  plotvals<-ggplot(elbowvals,aes(x=latent_factor_number,y=Loss))+geom_line()+geom_point()+theme_bw()+ggtitle(paste0("Plot of Number of Latent Factors vs Loss after ",rounds," Iterations"))+xlab("Number of Latent Factors")
+  print(plotvals)
+  SickleJr@plots[["LossvsLatentFactors"]]<-plotvals
+  SickleJr@WHinitials<-WHinitials
+  SickleJr@lossCalcSubsample<-samp
   return(SickleJr)
 }
 
@@ -530,8 +562,8 @@ DetermineDFromIRLBA<-function(SickleJr,d=50){
   Singular_values=NULL
   Index=NULL
   dataframelist<-pblapply(IRLBAlist,function(x){Index=c(1:length(x$d))
-    Singular_values=x$d
-    data.frame(Index,Singular_values)})
+  Singular_values=x$d
+  data.frame(Index,Singular_values)})
   for(i in 1:length(dataframelist)){
     dataframelist[[i]]<-cbind(dataframelist[[i]],Name=rep(modalitylabels[i],length(dataframelist[[i]][,1])))
   }
@@ -592,6 +624,7 @@ SetWandHfromWHinitials<-function(SickleJr,d){
 #' @param suppress_warnings Boolean indicating whether to suppress warnings
 #' @param subsample A numeric used primarily when finding an appropriate number of
 #' latent factors: defaults to total number of cells
+#' @param numthreads Number of threads to use if running in parallel
 #' @returns An object of class SickleJr with updated \eqn{\mathbf{W}^v} matrices, updated \eqn{\mathbf{H}} matrix, and a vector of values for
 #' the loss function added to the \code{Wlist}, \code{H}, and \code{loss} slots, respectively
 #' @examples SimSickleJrSmall<-RunjrSiCKLSNMF(SimSickleJrSmall,rounds=5)
@@ -599,7 +632,7 @@ SetWandHfromWHinitials<-function(SickleJr,d){
 RunjrSiCKLSNMF<-function(SickleJr,rounds=30000,differr=1e-6,
                          display_progress=TRUE,lossonsubset=FALSE,losssubsetsize=dim(SickleJr@H)[1],
                          minibatch=FALSE,batchsize=1000,random_W_updates=FALSE,seed=NULL,minrounds=200,
-                         suppress_warnings=FALSE,subsample=1:dim(SickleJr@normalized.count.matrices[[1]])[2]){
+                         suppress_warnings=FALSE,subsample=1:dim(SickleJr@normalized.count.matrices[[1]])[2],numthreads=detectCores()-1){
   SickleJr@minibatch<-FALSE
   if(minibatch){
     SickleJr@minibatch<-TRUE
@@ -620,9 +653,9 @@ RunjrSiCKLSNMF<-function(SickleJr,rounds=30000,differr=1e-6,
     initsamp<-initsamp-1
   }else{initsamp=1:dim(SickleJr@H)[1]-1}
   AdjL=lapply(SickleJr@graph.laplacian.list,function(x) {x@x[which(x@x>0)]=0
-                                                          return(-x)})
+  return(-x)})
   DL=lapply(SickleJr@graph.laplacian.list,function(x) {x@x[which(x@x<0)]=0
-                                                        return(x)})
+  return(x)})
   usemats<-lapply(SickleJr@normalized.count.matrices,function(x) x[,subsample])
   outputloss<-jrSiCKLSNMF(datamatL=usemats,
                           WL=SickleJr@Wlist,H=SickleJr@H,
@@ -630,7 +663,8 @@ RunjrSiCKLSNMF<-function(SickleJr,rounds=30000,differr=1e-6,
                           DL=DL,
                           lambdaWL=SickleJr@lambdaWlist,
                           lambdaH=SickleJr@lambdaH,
-                          Hconstraint=toString(SickleJr@rowRegularization),
+                          Hconstraint=toString(SickleJr@Hregularization),
+                          Wconstraint=toString(SickleJr@Wregularization),
                           differr=differr,
                           display_progress = display_progress,
                           rounds=rounds,
@@ -640,7 +674,7 @@ RunjrSiCKLSNMF<-function(SickleJr,rounds=30000,differr=1e-6,
                           initsamp=initsamp,
                           random_W_updates=random_W_updates,
                           minrounds=minrounds,
-                          suppress_warnings=suppress_warnings)
+                          suppress_warnings=suppress_warnings,numthreads = numthreads)
   SickleJr@loss<-outputloss
   return(SickleJr)
 }
@@ -707,10 +741,10 @@ DetermineClusters<-function(SickleJr,numclusts=2:20,clusteringmethod="kmeans",
      !(clusteringmethod%in% c("hierarchical","kmeans","diana","fanny","som","model","sota","pam","clara","agnes"))){
     warning("\n This clustering method is not available in clValid. Only graphs will be printed and saved in the clusterdiagnostics slot.\n")
     ingraph<-TRUE
-    }else if(!(clusteringmethod%in% c("kmeans","clara","fanny","dbscan","Mclust","HCPC","hkmeans"))&
+  }else if(!(clusteringmethod%in% c("kmeans","clara","fanny","dbscan","Mclust","HCPC","hkmeans"))&
            (clusteringmethod%in% c("hierarchical","kmeans","diana","fanny","som","model","sota","pam","clara","agnes"))){
-      warning("\n This clustering method is not available in factoextra. Only information from clValid will be printed and saved in the clusterdiagnostics slot.\n")
-      inclValid<-TRUE
+    warning("\n This clustering method is not available in factoextra. Only information from clValid will be printed and saved in the clusterdiagnostics slot.\n")
+    inclValid<-TRUE
   }else if ((clusteringmethod%in% c("kmeans","clara","fanny","dbscan","Mclust","HCPC","hkmeans"))&
             (clusteringmethod%in% c("hierarchical","kmeans","diana","fanny","som","model","sota","pam","clara","agnes"))){
     ingraph<-TRUE
@@ -778,14 +812,14 @@ DetermineClusters<-function(SickleJr,numclusts=2:20,clusteringmethod="kmeans",
 #' SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="louvain",neighbors=5)
 #' SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="spectral",neighbors=5,numclusts=3)
 #' #DO NOT DO THIS FOR REAL DATA; this is just to illustrate max clustering
-#' SimSickleJrSmall<-SetLambdasandRowReg(SimSickleJrSmall,rowReg="L2Norm")
+#' SimSickleJrSmall<-SetLambdasandRegs(SimSickleJrSmall,HrowReg="L2Norm")
 #' SimSickleJrSmall<-ClusterSickleJr(SimSickleJrSmall,method="max")
 #' @returns SickleJr- an object of class SickleJr with added clustering information
 #' @export
 ClusterSickleJr<-function(SickleJr,numclusts,method="kmeans",neighbors=20,louvainres=0.3){
   clust<-NULL
   if(method=="kmeans"){
-   clust<-kmeans(SickleJr@H,centers=numclusts,nstart=1000)$cluster
+    clust<-kmeans(SickleJr@H,centers=numclusts,nstart=1000)$cluster
   }else if(method=="spectral"){
     clust<-specClust(SickleJr@H,centers=numclusts,nn=neighbors)$cluster
   }else if(method=="louvain"){
@@ -793,11 +827,11 @@ ClusterSickleJr<-function(SickleJr,numclusts,method="kmeans",neighbors=20,louvai
     newvals<-cluster_louvain(knngraph,resolution = louvainres)
     clust<-newvals$membership
   }else if(method=="max"){
-    if(SickleJr@rowRegularization!="L2Norm"){
+    if(SickleJr@Hregularization!="L2Norm"){
       stop("\n Clustering based off the maximum latent factor per observation is not appropriate for H matrices that do not utilize the 'L2Norm' constraint\n")
     }
     clust<-apply(SickleJr@H,1,function(x) which.max(x))
-    }else {print("Please enter 'kmeans' for k-means clustering, 'spectral' for spectral clustering,
+  }else {print("Please enter 'kmeans' for k-means clustering, 'spectral' for spectral clustering,
                 'louvain' for Louvain community detection or 'max' to cluster based on
                 the maximum latent factor for each observation. Please note that 'max'
                 is only appropriate for the L2Norm-based variant.")}
@@ -876,7 +910,7 @@ PlotSickleJrUMAP<-function(SickleJr,umap.modality="H",cluster="kmeans",title="",
     color=SickleJr@clusters[[cluster]]
     if(is.null(legendname)){
       legendname=paste(cluster, "cluster")
-      }
+    }
 
   }else{
     color=SickleJr@metadata[[colorbymetadata]]

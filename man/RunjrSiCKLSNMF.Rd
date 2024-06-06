@@ -17,7 +17,8 @@ RunjrSiCKLSNMF(
   seed = NULL,
   minrounds = 200,
   suppress_warnings = FALSE,
-  subsample = 1:dim(SickleJr@normalized.count.matrices[[1]])[2]
+  subsample = 1:dim(SickleJr@normalized.count.matrices[[1]])[2],
+  numthreads = detectCores() - 1
 )
 }
 \arguments{
@@ -49,6 +50,8 @@ rather than the whole dataset}
 
 \item{subsample}{A numeric used primarily when finding an appropriate number of
 latent factors: defaults to total number of cells}
+
+\item{numthreads}{Number of threads to use if running in parallel}
 }
 \value{
 An object of class SickleJr with updated \eqn{\mathbf{W}^v} matrices, updated \eqn{\mathbf{H}} matrix, and a vector of values for

@@ -1,7 +1,7 @@
 Package: jrSiCKLSNMF
 Type: Package
 Title: Clustering Single-Cell Multimodal Omics Data with Joint Graph Regularized Single-Cell Kullback-Leibler Sparse Non-Negative Matrix Factorization
-Version: 1.2.1
+Version: 2.0.0
 Authors@R:
     person("Dorothy","Ellis",,"ddemoreellis@gmail.com",role=c("aut","cre"),
     comment=c(ORCID="0000-0002-8624-0042"))
@@ -16,10 +16,10 @@ Description: Methods to perform Joint graph Regularized Single-Cell
     batch updates and other adaptations for larger datasets.
 License: GPL-3 + file LICENSE
 Encoding: UTF-8
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 Imports: Rcpp (>= 1.0.9), igraph, umap, kknn, ggplot2, methods, stats, 
     rlang, Matrix, data.table,parallel,pbapply,cluster,MASS,clValid,factoextra,
-    foreach,irlba,scran
+    foreach,irlba,scran,purrr
 Suggests: 
     knitr,
     rmarkdown

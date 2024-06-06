@@ -57,7 +57,7 @@ SimSickleJr<-BuildKNNGraphLaplacians(SimSickleJr)
 For values $\lambda_{W^v}$ and our value $\lambda_H$, when we constrain the rows of $\textbf{H}$ such that the L2 Norm of each row is equal to 1 (the default), we suggest setting $\lambda_{\textbf W^{RNA}}=3$, $\lambda_{\textbf W^{ATAC}}=15$, and $\lambda_{\textbf H}=0$. When not using this constraint, we suggest using $\lambda_{\textbf W^{RNA}}=10$, $\lambda_{W^{ATAC}}=50$, and $\lambda_{H}=500$. 
 
 ```{r setlambdas}
-SimSickleJr<-SetLambdasandRowReg(SimSickleJr,lambdaWlist=list(10,50),lambdaH=500,rowReg="None")
+SimSickleJr<-SetLambdasandRegs(SimSickleJr,lambdaWlist=list(10,50),lambdaH=500,HrowReg="None")
 ```
 
 Next, we will normalize our count matrices using median library size normalization.
@@ -69,12 +69,12 @@ SimSickleJr<-NormalizeCountMatrices(SimSickleJr)
 Now we can make plots to determine an ideal number of latent factors. Here, 5 or 6 appears to be an ideal number of
 latent factors. Note that this does change depending on the initialization of the graph matrices and the seed for the number of initial samples; however, the ideal number appears to be between 4 and 7. To more accurately identify an ideal number of latent factors, perform more rounds. This is the opposite behavior of the  L2 Norm regularized version.
 
-Also note that you should use run this in parallel and over more d values. Default is 2 to 20.
+Also note that you should use run this in parallel, for more iterations, and over more d values. Default is 2 to 20 d values. and 200 iterations
 
 ```{r determineD}
-SimSickleJr<-PlotLossvsLatentFactors(SimSickleJr,d_vector=4:6,parallel = FALSE,rounds=200,seed=15)
+SimSickleJr<-PlotLossvsLatentFactors(SimSickleJr,d_vector=4:6,parallel = FALSE,rounds=25)
 ```
-From this plot, around 5 latent factors appears to be a good value. If you already have an idea of the number of latent factors you would like to use, you may generate the H and W matrices as below:
+In this toy example, around 5 latent factors appears to be a good value. If you already have an idea of the number of latent factors you would like to use, you may generate the H and W matrices as below:
 
 ```{r initializeWH}
 SimSickleJr<-GenerateWmatricesandHmatrix(SimSickleJr,d=10)
@@ -89,11 +89,11 @@ SimSickleJr<-SetWandHfromWHinitials(SimSickleJr,d=5)
 
 # Running jrSiCKLSNMF
 
-Finally, we can run jrSicKLSNMF. By default, we constrain the rows of $\textbf{H}$ such that the L2 Norm of each row is equal to 1. Please note that we store $\textbf{H}$ as $\textbf{H}^T$. Please note that, for real data, you should use enough rounds to reach convergence of $10^{-6}$ for the L2 Norm regularized data and $10^{-7}$ for the sparsity data.
+Finally, we can run jrSicKLSNMF. By default, we constrain the rows of $\textbf{H}$ such that the L2 Norm of each row is equal to 1. Please note that we store $\textbf{H}$ as $\textbf{H}^T$. Please note that, for real data, you should use enough rounds to reach convergence of $10^{-6}$.
 
 ```{r runningjrsickls}
 start.time<-Sys.time()
-SimSickleJr<-RunjrSiCKLSNMF(SimSickleJr,rounds=1000,differr=1e-6,minibatch=FALSE)
+SimSickleJr<-RunjrSiCKLSNMF(SimSickleJr,rounds=1000,differr=1e-5,minibatch=FALSE)
 stop.time<-Sys.time()
 (time<-stop.time-start.time)
 ```

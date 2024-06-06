@@ -19,6 +19,7 @@ import("cluster")
 import("clValid")
 import("factoextra")
 import("irlba")
+importFrom("purrr","list_transpose")
 ## export all regularly named functions
 ## (but allow for private functions whose name starts with a dot).name <- function(...)
 exportPattern("^[[:alpha:]]+")
