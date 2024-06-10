@@ -3,8 +3,7 @@ title: "Getting started with jrSiCKLSNMF with an L2 Norm constraint on the
 rows of H"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting started with jrSiCKLSNMF with an L2 Norm 
-  constraint on the rows of H}
+  %\VignetteIndexEntry{Getting started with jrSiCKLSNMF with an L2 Norm constraint on the rows of H}
   %\VignetteEngine{knitr::rmarkdown}
   %\usepackage[UTF-8]{inputenc}
 ---

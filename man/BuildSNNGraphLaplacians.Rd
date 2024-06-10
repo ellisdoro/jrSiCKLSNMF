@@ -17,8 +17,9 @@ matrix format added to its \code{graph.laplacian.list} slot
 }
 \description{
 Generate graph Laplacians for graph regularization of
-jrSiCKLSNMF from the list of raw count matrices using an SNN graph. SNN is more robust to
-situations where the number of cells outnumbers the number of features.
+jrSiCKLSNMF from the list of raw count matrices using an SNN graph. SNN is
+more robust to situations where the number of cells outnumbers the number of
+features.
 }
 \examples{
 SimSickleJrSmall<-BuildSNNGraphLaplacians(SimSickleJrSmall)
